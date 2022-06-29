@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <string.h>
 #include "config.h"
+#include "coda.h"
 
 struct config_struct config;
 
@@ -13,13 +14,23 @@ int main(int argc, char *argv[]){
 
   init_config_file(argv[2]);  //inizializzo i dati
 
-  printf("config verbosity: %d\n", config.info);
+  printf("Quantita' informazioni: %d\n", config.info);
 
-    if (config.info > 2) {
-        printf("config.num_workers: %d\n", config.num_workers);
-        printf("config.sockname: %s\n", config.sockname);
-        printf("config.limit_num_files: %d\n", config.limit_num_files);
-        printf("config.storage_capacity: %lu\n", config.storage_capacity);
-    }
+  if (config.info > 2) {
+    printf("config.num_workers = %d\n", config.num_workers);
+    printf("config.sockname = %s\n", config.sockname);
+    printf("config.limit_num_files = %d\n", config.limit_num_files);
+    printf("config.storage_capacity = %lu\n", config.storage_capacity);
+  }
+
+  Coda *q = init_coda();
+
+  if (!q) {
+    fprintf(stderr, "Errore : init_coda fallita\n");
+    return -1;
+  }
+
+
+return 0;
 
 }

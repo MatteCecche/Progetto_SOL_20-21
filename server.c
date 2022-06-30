@@ -2,8 +2,13 @@
 #include <string.h>
 #include "config.h"
 #include "coda.h"
+#include "codastorage.h"
+#include "common_def.h"
+#include "common_funcs.h"
+#include "config.h"
 
 struct config_struct config;
+CodaStorage *storage
 
 int main(int argc, char *argv[]){
 
@@ -23,13 +28,19 @@ int main(int argc, char *argv[]){
     printf("config.storage_capacity = %lu\n", config.storage_capacity);
   }
 
-  Coda *q = init_coda();
+  Coda *q = init_coda();  //creo la coda
 
   if (!q) {
     fprintf(stderr, "Errore : init_coda fallita\n");
     return -1;
   }
 
+  storage = init_coda_s(config.limit_num_files, config.storage_capacity);
+
+  if (!storage){
+    fprintf(stderr, "Errore : initQueue storage fallita\n");
+    return -1;
+  }
 
 return 0;
 

@@ -8,6 +8,7 @@
 // stato del server
 
 typedef enum {
+
     RUNNING = 0,
     CLOSING = 1,
     CLOSED = 2
@@ -69,9 +70,22 @@ typedef struct {
 // struttura del messaggio di risposta dal server
 
 typedef struct {
+
     int result; // 0:success, >0: errno
     char pathname[PATH_MAX]; // nome del file (eventualmente)
     int datalen;
+
 } msg_response_t;
+
+
+// tipo di dato usato per passare gli argomenti ai thread worker
+typedef struct threadArgs {
+
+    int pfd;
+    int thid;
+    Queue_t *q;
+    IntWithLock_t *iwl;
+    
+} threadArgs_t;
 
 #endif

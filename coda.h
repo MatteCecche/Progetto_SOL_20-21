@@ -1,3 +1,4 @@
+#include <pthread.h>
 
 // Elemento coda
 
@@ -15,6 +16,8 @@ typedef struct Queue {
   Nodo        *head;    // elemento di testa
   Nodo        *tail;    // elemento di coda
   unsigned long  qlen;    // lunghezza
+  pthread_mutex_t qlock;
+  pthread_cond_t  qcond;
 
 } Coda;
 

@@ -1,8 +1,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <errno.h>
+#include <pthread.h>
 #include "coda.h"
 #include "config.h"
+#include "util.h"
 
 extern struct config_struct config;
 
@@ -16,6 +19,19 @@ Coda *init_coda() {
   q->head = NULL;
   q->tail = NULL;
   q->qlen = 0;
+
+  if (pthread_mutex_init(&q->qlock, NULL) != 0) {
+        perror("Errore : mutex init");
+        return NULL;
+    }
+
+    if (pthread_cond_init(&q->qcond, NULL) != 0) {
+	    perror("Errore : mutex cond");
+
+        if (&q->qlock) pthread_mutex_destroy(&q->qlock);
+
+        return NULL;
+    }
 
   return q;
 
@@ -32,6 +48,8 @@ void canc_coda(Coda *q) {
 	   free((void*) p);
   }
 
+  if (&q->qlock)  pthread_mutex_destroy(&q->qlock);
+  if (&q->qcond)  pthread_cond_destroy(&q->qcond);
   free(q);
 
 }
@@ -40,13 +58,16 @@ void canc_coda(Coda *q) {
 int ins_coda(Coda *q, int data) {
 
     if (q == NULL) {
-      return -1;     // controllare
+      errno= EINVAL;
+      return -1;
     }
     Nodo *n = free((void*) p);
 
     if (!n) return -1;
     n->data = data;
     n->next = NULL;
+
+    LOCK(&q->qlock);
 
     if (q->qlen == 0) {
         q->head = n;
@@ -58,6 +79,9 @@ int ins_coda(Coda *q, int data) {
 
     q->qlen += 1;
 
+    SIGNAL(&q->qcond);
+    UNLOCK(&q->qlock);
+
     return 0;
 
 }
@@ -66,7 +90,13 @@ int ins_coda(Coda *q, int data) {
 int estrai_coda(Coda *q) {
 
   if (q == NULL) {
+    errno= EINVAL;
     return -1;
+  }
+
+  LOCK(&q->qlock);
+  while(q->qlen == 0) {
+	   WAIT(&q->qcond, &q->qlock);
   }
 
   Nodo *n  = (Nodo *)q->head;
@@ -74,6 +104,7 @@ int estrai_coda(Coda *q) {
   q->head    = q->head->next;
   q->qlen   -= 1;
 
+  UNLOCK(&q->qlock);
   free((void*)n);
 
   return data;
@@ -84,9 +115,11 @@ int estrai_coda(Coda *q) {
 Nodo* trova_coda(Coda *q, int fd) {
 
   if (q == NULL) {
+    errno= EINVAL;
     return NULL;
   }
 
+  LOCK(&q->qlock);
   Nodo *curr = q->head;
   Nodo *found = NULL;
 
@@ -101,6 +134,7 @@ Nodo* trova_coda(Coda *q, int fd) {
     }
   }
 
+  UNLOCK(&q->qlock);
   return found;
 
 }
@@ -109,9 +143,11 @@ Nodo* trova_coda(Coda *q, int fd) {
 int cancella_nodo_coda(Coda *q, int fd) {
 
   if (q == NULL) {
+    errno = EINVAL;
     return -1;
   }
 
+  LOCK(&q->qlock);
   Nodo* temp = q->head;
   Nodo* prev = NULL;
 
@@ -120,10 +156,13 @@ int cancella_nodo_coda(Coda *q, int fd) {
     free((void*) temp);
     q->qlen   -= 1;
     if (q->qlen == 0) {
+      if (&q->qlock)  pthread_mutex_destroy(&q->qlock);
+      if (&q->qcond)  pthread_cond_destroy(&q->qcond);
       free(q);
       return 1;
     } else {
       q->qlen -= 1;
+      UNLOCK(&q->qlock);
     }
     return 0;
 
@@ -134,15 +173,19 @@ int cancella_nodo_coda(Coda *q, int fd) {
     }
 
   if (temp == NULL) {    // Se fd non era presente
+    UNLOCK(&q->qlock);
     return 0;
   }
 
   prev->next = temp->next;
 
+  free((void*)temp);
 
   }
 
   q->qlen -= 1;
+
+  UNLOCK(&q->qlock);
 
   return 0;
 
@@ -151,6 +194,8 @@ int cancella_nodo_coda(Coda *q, int fd) {
 
 unsigned long lung_coda(Coda *q) {
 
+    LOCK(&q->qlock);
     unsigned long len = q->qlen;
+    UNLOCK(&q->qlock);
     return len;
 }

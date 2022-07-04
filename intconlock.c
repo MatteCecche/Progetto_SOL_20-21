@@ -3,7 +3,7 @@
 #include "util.h"
 #include "intconlock.h"
 
-IntConLock_t *initIntWithLock() {
+IntConLock_t *initconlock() {
     IntConLock_t *iwl = malloc(sizeof(IntConLock_t));
 
     if (!iwl) return NULL;

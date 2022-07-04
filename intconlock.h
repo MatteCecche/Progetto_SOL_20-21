@@ -12,9 +12,9 @@ typedef struct IntWithLock {      // intero con lock
 } IntConLock_t;
 
 // Inizializza la struttura, settando 'total_clients' a zero, ed inizializzando il mutex tc_lock
-IntConLock_t *initIntWithLock();
+IntConLock_t *initconlock();
 
-// Cancella la struttura allocata con initIntWithLock.
+// Cancella la struttura allocata con initconlock.
 void CancIntConLock(IntConLock_t *iwl);
 
 // Aumenta di uno l'intero (iwl->total_clients)

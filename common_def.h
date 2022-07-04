@@ -83,9 +83,9 @@ typedef struct threadArgs {
 
     int pfd;
     int thid;
-    Queue_t *q;
-    IntWithLock_t *iwl;
-    
+    CodaStorage *q;
+    intconlockLock_t *iwl;
+
 } threadArgs_t;
 
 #endif

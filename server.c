@@ -21,6 +21,11 @@
 #include "signal_handler.h"
 #include "intconlock.h"
 
+char* myStrerror (int e);      //da fare
+int requestHandler (int myid, int fd, msg_request_t req);     //da fare
+int aggiorna(fd_set *set, int fd_num);
+void *Worker(void *arg);
+
 struct config_struct config;
 CodaStorage *storage;
 server_status status = CLOSED;
@@ -32,7 +37,7 @@ int main(int argc, char *argv[]){
     return -1;
   }
 
-  init_config_file(argv[2]);  //inizializzo i dati
+  init_config_file(argv[2]);        //inizializzo i dati
 
   printf("Quantita' informazioni: %d\n", config.info);
 
@@ -43,10 +48,10 @@ int main(int argc, char *argv[]){
     printf("config.storage_capacity = %lu\n", config.storage_capacity);
   }
 
-  int pfd[2]; //pipe per comunicazone tra workers e main
-  int spfd[2]; //signal pipe
+  int pfd[2];                       //pipe per comunicazone tra workers e main
+  int spfd[2];                      //signal pipe
 
-  Coda *q = init_coda();  //creo la coda
+  Coda *q = init_coda();            //creo la coda
 
   if (!q) {
     fprintf(stderr, "Errore : init_coda fallita\n");
@@ -61,9 +66,9 @@ int main(int argc, char *argv[]){
   }
 
 
-    IntWithLock_t *iwl = initIntWithLock();     // Creo ed inizializzo l'intero con lock per contare i client
+    IntConLock_t *iwl = initconlock();     // Creo ed inizializzo l'intero con lock per contare i client
     if (!iwl) {
-      fprintf(stderr, "Errore : initIntWithLock fallita\n");
+      fprintf(stderr, "Errore : initconlock fallita\n");
       return -1;
     }
 
@@ -142,7 +147,7 @@ int main(int argc, char *argv[]){
 
     listen(fd_sk, SOMAXCONN);
 
-    // mantengo il massimo indice di descrittore attivo in fd_num
+                                        // mantengo il massimo indice di descrittore attivo in fd_num
     if (fd_sk > fd_num) fd_num = fd_sk;
     if (pfd_r > fd_num) fd_num = pfd_r;
     if (spfd[0] > fd_num) fd_num = spfd[0];
@@ -152,9 +157,222 @@ int main(int argc, char *argv[]){
     FD_SET(pfd_r, &set);
     FD_SET(spfd[0], &set);
 
-//////// da continuare /////////
+    int temp = -1;
+
+    while (((temp = checkTotalClients(iwl)) != 0 && status == CLOSING) || status == RUNNING) {
+      if (config.v > 2) printf("SERVER : totalCLients = %d\n", temp);
+
+      rdset = set;                                          // preparo maschera per select
+
+      if (select(fd_num+1, &rdset, NULL, NULL, NULL) == -1) {
+        fprintf(stderr, "Errore : select fallita\n");
+        exit(-1);
+      } else {                                              // select OK
+
+        if (config.v > 2) printf("SERVER : select ok\n");
+          fflush(stdout);
+
+          for (fd = 0; fd <= fd_num; fd++) {
+
+            if (FD_ISSET(fd, &rdset)) {
+
+              if (fd == fd_sk) {                            // sock connect pronto
+                fd_c = accept(fd,NULL,0);
+
+                if (fd_c == -1) {
+                  fprintf(stderr, "Errore accept\n");
+                  exit(-1);
+                }
+
+                if (config.v > 2) printf("SERVER : Appena fatta accept, nuovo fd:%d\n", fd_c);
+                  fflush(stdout);
+
+                  FD_SET(fd_c, &set);
+                  addClient(iwl);
+                  if (fd_c > fd_num) fd_num = fd_c;
+                  } else if (fd == pfd_r) {                   //aggiungo in set gli fd (se > 0) che leggo dalla pipe (con workers)
+
+                    int num;
+                    int nread;
+
+                    while ((nread = readn(fd, &num, sizeof(num))) == sizeof(num)) {
+
+                      if (config.v > 2) printf("SERVER : Letto fd:%d dalla pipe\n", num);
+                        fflush(stdout);
+
+                        if (num > 0) {
+                          FD_SET(num, &set);
+
+                          if (num > fd_num) fd_num = num;
+                        }
+                      }
+
+                      if (nread > 0) {
+                        fprintf(stderr, "Errore nread %d main, lettura parziale\n", nread);
+                        fflush(stderr);
+                      }
+
+                  } else if (fd == spfd[0]) {                 //pipe con il signal_handler
+                    FD_CLR(spfd[0], &set);                    //tolgo pipe con signal_handler dal set
+                    fd_num = aggiorna(&set, fd_num);
+                    close(spfd[0]);
+
+                    if (status == CLOSING) {
+
+                      if (config.v > 1) printf("SERVER : Non accetto nuove connessioni\n");
+                        FD_CLR(fd_sk, &set);                  //tolgo socket di connessione dal set
+                        fd_num = aggiorna(&set, fd_num);
+                        close(fd_sk);
+                    } else if (status == CLOSED) {
+
+                      if (config.v > 1) printf("SERVER : Non accetto nuove richieste\n");  // (finisco il ciclo for in cui sono, quando torno al while esco)
+                      } else {
+                        fprintf(stderr, "SERVER : Stato server non consistente\n");
+
+                        status = CLOSED;                        //come quello sopra (finisci di servire le richieste e chiudi)
+                      }
+                    } else {                                    // sock I/0 pronto
+
+                      if (ins_coda(q, fd) == -1) {
+                      fprintf(stderr, "Errore : push\n");
+                      exit(-1);
+                      }
+                    FD_CLR(fd, &set);                           // tolgo fd dal set
+                    fd_num = aggiorna(&set, fd_num);
+
+                    if (config.v > 2) printf("SERVER : Master pushed <%d>\n", fd);
+                      fflush(stdout);
+                   }
+                }
+              }
+           }
+       }
 
 
 return 0;
 
 }
+
+
+
+
+
+int aggiorna(fd_set *set, int fd_num) {
+
+  int max_fd = 0;
+  int i;
+
+  for (i=0; i <= fd_num; i++) {
+
+    if (FD_ISSET(i, set)) {
+
+      max_fd = i;
+
+    }
+  }
+
+  return max_fd;
+
+}
+
+
+void *Worker(void *arg) {
+
+  CodaStorage *q = ((threadArgs_t *)arg)->q;
+  intconlockLock_t *iwl = ((threadArgs_t *)arg)->iwl;
+  int myid = ((threadArgs_t *)arg)->thid;
+  int pfd_w = ((threadArgs_t *)arg)->pfd; //fd lettura pipe
+
+  int nread; // numero caratteri letti
+  msg_request_t req; // messaggio richiesta dal client
+
+  size_t consumed = 0;
+  while (1) {
+
+    int fd;
+    fd = estrai_coda(q);
+
+    if (fd == -1) {
+
+      if (config.v > 1) printf("SERVER : Worker %d, ha consumato  <%ld> messaggi, ora esiste\n", myid, consumed);
+        fflush(stdout);
+        return NULL;
+    }
+    ++consumed;
+
+    if (config.v > 2) printf("SERVER : Worker %d: estratto <%d>\n", myid, fd);
+    fflush(stdout);
+
+    nread = readn(fd, &req, sizeof(msg_request_t));
+
+    if (nread == 0) {/* EOF client finito */
+
+      if (config.v > 2) printf("SERVER : Worker %d, chiudo:%d\n", myid, fd);
+      fflush(stdout);
+
+      int esito = removeFile_coda_s(storage_q, fd);
+
+      if (config.v > 1) printf("SERVER : Close fd: %d, esito: %s\n", fd, myStrerror(esito));
+
+      close(fd);
+      fd = -fd;
+
+      deleteClient(iwl);
+
+      } else if (nread != sizeof(msg_request_t)) {
+        fprintf(stderr, "Errore : nread worker, lettura parziale\n");
+        fflush(stderr);
+
+        if (config.v > 2) printf("SERVER : Worker %d, chiudo:%d\n", myid, fd);
+
+        int esito = removeFile_coda_s(storage_q, fd);
+
+        if (config.v > 1) printf("SERVER : Close fd: %d, esito: %s\n", fd, myStrerror(esito));
+        fflush(stdout);
+
+        close(fd);
+        fd = -fd;
+
+        deleteClient(iwl);
+
+      } else { /* nread == sizeof(msg_request_t) */
+
+        if (config.v > 1) printf("SERVER : Worker %d, Server ha preso : %d, da  %d\n", myid, req.op, fd);
+        fflush(stdout);
+
+        if (requestHandler(myid, fd, req) != 0) { // client disconnesso
+          fd = -fd; // in modo che nel main non si riaggiunga nel set
+
+          deleteClient(iwl);
+
+        }
+      }
+
+        // scrittura di fd nella pipe
+      if (writen(pfd_w, &fd, sizeof(fd)) != sizeof(fd)) {
+        fprintf(stderr, "Errore : writen worker, parziale\n");
+        fflush(stderr);
+        exit(-1);
+      } else {
+
+        if (config.v > 2) printf("SERVER : fd %d messo nella pipe\n", fd);
+        fflush(stdout);
+      }
+
+      memset(&req, '\0', sizeof(req));
+
+    }
+
+    if (config.v > 1) printf("SERVER : Worker %d, ha consumato <%ld> messaggi, adesso esce\n", myid, consumed);
+    fflush(stdout);
+
+
+    return NULL;
+
+
+}
+
+
+
+
+//da fare requestHandler

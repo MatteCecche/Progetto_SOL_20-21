@@ -21,8 +21,8 @@
 #include "signal_handler.h"
 #include "intconlock.h"
 
-char* myStrerror (int e);      //da fare
-int requestHandler (int myid, int fd, msg_request_t req);     //da fare
+char* myStrerror (int e);
+int requestHandler (int myid, int fd, msg_request_t req);
 int aggiorna(fd_set *set, int fd_num);
 void *Worker(void *arg);
 
@@ -249,12 +249,248 @@ int main(int argc, char *argv[]){
        }
 
 
-return 0;
+  if (config.v > 2) printf("🤖  SERVER: SERVER IN FASE DI CHIUSURA (uscito dal while)\n");
+
+  broadcast_coda_s(storage_q);   // svegliamo gli worker fermi su una wait (di storageQueue)
+
+  if (CLOSED) close(fd_sk);
+  unlink(config.sockname);
+  close(pfd_r);
+  close(spfd[0]);
+
+          //Protocollo di terminazione:
+          //Si inviano 'c' valori speciali (-1)
+          //quindi si aspettano gli worker e poi si terminano
+
+  for (i = 0; i < config.num_workers; ++i){
+    int eos = -1;
+    if (ins_coda(q, eos) == -1) {
+      fprintf(stderr, "🤖  SERVER: ❌ ERRORE: push\n");
+      exit(-1);
+    }
+  }
+
+           // aspetto la terminazione di tutti worker
+
+  for (i = 0; i < config.num_workers; ++i)
+    pthread_join(th[i], NULL);
+
+
+  // libero memoria
+  canc_coda(q);
+  canc_coda_s(storage_q);
+  CancIntConLock(iwl);
+  free(th);
+  free(thARGS);
+
+  return 0;
 
 }
 
 
 
+char* myStrerror (int e) {
+
+  if (e == -1) {
+
+    return "Errore nella comunicazione con il client";
+
+  } else if (e == 0) {
+
+    return "Positivo";
+
+  } else return strerror(e);
+
+}
+
+
+int requestHandler (int myid, int fd, msg_request_t req) {
+
+  msg_response_t res;
+  res.result = 0;
+  res.datalen = 0; //superfluo
+
+  switch(req.op) {
+        /**
+         * res.result ==
+         *  • -1: si sono verificati dei problemi sul socket fd ed è stato chiuso
+         *  • 0: (ho già comunicato al client fd)
+         *  • >0: errore da comunicare
+         */
+         case OPENFILE: {
+            if (req.flag == O_CREATE) {
+                res.result = ins_coda_s(storage_q, req.pathname, false, fd);
+                if (config.v > 1) printf("SERVER : ->Openfile_O_CREATE di %s, fd: %d, esito: %s\n", req.pathname, fd, myStrerror(res.result));
+                if (res.result <= 0) return res.result;
+
+            } else if (req.flag == O_CREATE_LOCK) {
+                res.result = ins_coda_s(storage_q, req.pathname, true, fd);
+                if (config.v > 1) printf("SERVER : ->Openfile_O_CREATE_LOCK di %s, fd: %d, esito: %s\n", req.pathname, fd, myStrerror(res.result));
+                if (res.result <= 0) return res.result;
+
+            } else if (req.flag == O_LOCK) {
+                res.result = aggiornaOpeners_coda_s(storage_q, req.pathname, true, fd);
+                if (config.v > 1) printf("SERVER : ->Openfile_O_LOCK di %s, fd: %d, esito: %s\n", req.pathname, fd, myStrerror(res.result));
+                if (res.result <= 0) return res.result;
+
+            } else if (req.flag == O_NULL) {
+                res.result = aggiornaOpeners_coda_s(storage_q, req.pathname, false, fd);
+                if (config.v > 1) printf("SERVER : ->Openfile_O_NULL di %s, fd: %d, esito: %s\n", req.pathname, fd, myStrerror(res.result));
+                if (res.result <= 0) return res.result;
+
+            } else {
+                // flag non riconosciuto
+                if (config.v > 1) printf("SERVER : ->Openfile fd: %d, flag non riconosciuto\n", fd);
+                res.result = EINVAL;
+            }
+        }
+        break;
+
+        case READFILE: {
+            res.result = readFile_coda_s(storage_q, req.pathname, fd);
+            if (config.v > 1) printf("SERVER : ->Readfile, fd: %d, esito: %s\n", fd, myStrerror(res.result));
+            if (res.result <= 0) return res.result;
+        }
+        break;
+
+        case READNFILES: {
+            res.result = readNFile_coda_s(storage_q, req.pathname, fd, req.datalen);
+            if (config.v > 1) printf("SERVER : ->ReadNfiles, fd: %d, esito: %s\n", fd, myStrerror(res.result));
+            if (res.result <= 0) return res.result;
+        }
+        break;
+
+        case WRITEFILE: {
+            void *buf = malloc(req.datalen);
+            if (buf == NULL) {
+                fprintf(stderr, "SERVER : fd: %d, malloc WriteToFile fallita\n", fd);
+                fflush(stdout);
+                res.result = ENOMEM;
+            }
+
+            int nread = readn(fd, buf, req.datalen);
+            if (nread == 0) {                             // EOF client finito
+
+                if (config.v > 2) printf("SERVER : Worker %d, chiudo:%d\n", myid, fd);
+                fflush(stdout);
+
+                free(buf);
+                int esito = closeFdFile_coda_s(storage_q, fd);
+                if (config.v > 1) printf("SERVER : Close fd:%d files, %s", fd, myStrerror(esito));
+                close(fd);
+
+                return -1;
+            } else if (nread != req.datalen) {
+                fprintf(stderr, "Errore :  nread worker, lettura parziale\n");
+                fflush(stderr);
+
+                if (config.v > 2) printf("SERVER : Worker %d, chiudo:%d\n", myid, fd);
+                fflush(stdout);
+
+                free(buf);
+                int esito = closeFdFile_coda_s(storage_q, fd);
+                if (config.v > 1) printf("SERVER : Close fd:%d files, %s", fd, myStrerror(esito));
+                close(fd);
+
+                return -1;
+            } else {
+                res.result = writeFile_coda_s(storage_q, req.pathname, fd, buf, req.datalen);
+                free(buf);
+                if (config.v > 1) printf("SERVER : ->WriteToFile, fd: %d, esito: %s\n", fd, myStrerror(res.result));
+                if (res.result <= 0) return res.result;
+
+            }
+        }
+        break;
+
+        case APPENDTOFILE: {
+            void *buf = malloc(req.datalen);
+            if (buf == NULL) {
+                fprintf(stderr, "Errore : fd: %d, malloc appendToFile fallita\n", fd);
+                fflush(stdout);
+                res.result = ENOMEM;
+            }
+
+            int nread = readn(fd, buf, req.datalen);
+            if (nread == 0) {                             // EOF client finito
+
+                if (config.v > 2) printf("SERVER : Worker %d, chiudo:%d\n", myid, fd);
+                fflush(stdout);
+
+                free(buf);
+                int esito = closeFdFile_coda_s(storage_q, fd);
+                if (config.v > 1) printf("SERVER : Close fd:%d files, esito:%s", fd, myStrerror(esito));
+                close(fd);
+
+                return -1;
+            } else if (nread != req.datalen) {
+                fprintf(stderr, "Errore : nread worker, lettura parziale\n");
+                fflush(stderr);
+
+                if (config.v > 2) printf("SERVER : Worker %d, chiudo:%d\n", myid, fd);
+                fflush(stdout);
+
+                free(buf);
+                int esito = closeFdFile_coda_s(storage_q, fd);
+                if (config.v > 1) printf("SERVER : Close fd:%d files, esito:%s", fd, myStrerror(esito));
+                close(fd);
+
+                return -1;
+            } else {
+                res.result = appendToFile_coda_s(storage_q, req.pathname, fd, buf, req.datalen);
+                free(buf);
+                if (config.v > 1) printf("SERVER : ->AppendToFile, fd: %d, esito: %s\n", fd, myStrerror(res.result));
+                if (res.result <= 0) return res.result;
+            }
+        }
+        break;
+
+        case LOCKFILE: {
+            res.result = lockFile_coda_s(storage_q, req.pathname, fd);
+            if (config.v > 1) printf("SERVER : ->LockFile, fd: %d, esito: %s\n", fd, myStrerror(res.result));
+            if (res.result <= 0) return res.result;
+        }
+        break;
+
+        case UNLOCKFILE: {
+            res.result = unlockFile_coda_s(storage_q, req.pathname, fd);
+            if (config.v > 1) printf("SERVER : ->UnlockFile, fd: %d, esito: %s\n", fd, myStrerror(res.result));
+            if (res.result <= 0) return res.result;
+        }
+        break;
+
+        case CLOSEFILE: {
+            res.result = closeFile_coda_s(storage_q, req.pathname, fd);
+            if (config.v > 1) printf("SERVER : ->CloseFile, fd: %d, esito: %s\n", fd, myStrerror(res.result));
+            if (res.result <= 0) return res.result;
+        }
+        break;
+
+        case REMOVEFILE: {
+            res.result = removeFile_coda_s(storage_q, req.pathname, fd);
+            if (config.v > 1) printf("SERVER : ->RemoveFile, fd: %d, esito: %s\n", fd, myStrerror(res.result));
+            if (res.result <= 0) return res.result;
+        }
+        break;
+        default: { // non dovrebbe succedere (api scritta male)
+            res.result = EPERM;
+            if (config.v > 1) printf("SERVER : ->Operazione richiesta da fd: %d non riconosciuta", fd);
+        }
+    }
+
+    //invio messaggio al client (finisco qui nel caso in caso di errore (e fd ancora aperto))
+    if (writen(fd, &res, sizeof(res)) != sizeof(res)) {
+        close(fd);
+        if (config.v > 1) fprintf(stderr, "Errore : writen requestHandler errore\n");
+        fflush(stdout);
+        return -1;
+    }
+
+    fflush(stdout);
+    fflush(stderr);
+
+    return 0;
+}
 
 
 int aggiorna(fd_set *set, int fd_num) {
@@ -371,8 +607,3 @@ void *Worker(void *arg) {
 
 
 }
-
-
-
-
-//da fare requestHandler

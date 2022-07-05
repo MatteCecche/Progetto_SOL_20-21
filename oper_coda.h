@@ -48,5 +48,9 @@ int oper_coda_setWDirname(OperCoda_t *q, char *dirname);
 
 int oper_coda_setRDirname(OperCoda_t *q, char *dirname);
 
+// Setta q->dirname =  dirname, se l'operazione contenuta nella tail della coda è APPEND
+
+int oper_coda_setADirname(OptQueue_t *q, char *dirname);
+
 
 #endif /* OPER_CODA_H */

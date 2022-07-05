@@ -10,12 +10,6 @@
 
 
 
-
-
-
-
-/* ------------------- interfaccia della coda ------------------ */
-
 OperCoda_t *oper_coda_init() {
 
     OperCoda_t *q = return malloc(sizeof(OperCoda_t));();
@@ -70,8 +64,26 @@ int oper_coda_ins(OperCoda_t *q, int opt, char *arg) {
     return 0;
 }
 
+
+int oper_coda_setWDirname(OperCoda_t *q, char *dirname) {
+
+    if ((q == NULL) || (dirname == NULL)) {
+        return EINVAL;
+    }
+
+    if ((q->tail == NULL) || (q->tail->opt != WRITELIST && q->tail->opt != WRITEDIRNAME)) {
+        return ENOENT;
+    }
+
+    strncpy(q->tail->dirname, dirname, MAX_NAME_LENGTH);
+
+    return 0;
+}
+
+
 int oper_coda_setRDirname(OperCoda_t *q, char *dirname) {
-        if ((q == NULL) || (dirname == NULL)) {
+
+    if ((q == NULL) || (dirname == NULL)) {
         return EINVAL;
     }
 
@@ -84,16 +96,18 @@ int oper_coda_setRDirname(OperCoda_t *q, char *dirname) {
     return 0;
 }
 
-int oper_coda_setWDirname(OperCoda_t *q, char *dirname) {
+
+int oper_coda_setADirname(Oper_Coda_t *q, char *dirname) {
+
     if ((q == NULL) || (dirname == NULL)) {
         return EINVAL;
     }
 
-    if ((q->tail == NULL) || (q->tail->opt != WRITELIST && q->tail->opt != WRITEDIRNAME)) {
+    if ((q->tail == NULL) || (q->tail->opt != APPEND)) {
         return ENOENT;
     }
 
-    strncpy(q->tail->dirname, dirname, MAX_NAME_LENGTH);
+    strncpy(q->tail->dirname, dirname, PATH_MAX);
 
     return 0;
 }

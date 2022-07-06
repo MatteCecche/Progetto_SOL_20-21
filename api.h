@@ -19,7 +19,7 @@ int openFile(const char* pathname, int flags, const char* dirname);
 
 
 // Legge tutto il contenuto del file dal server (se esiste) ritornando un puntatore
-//  ad un'area allocata sullo heap nel parametro ‘buf’, mentre ‘size’ conterrà
+// ad un'area allocata sullo heap nel parametro ‘buf’, mentre ‘size’ conterrà
 // la dimensione del buffer dati (ossia la dimensione in bytes del file letto)
 
 int readFile(const char* pathname, void** buf, size_t* size);

@@ -57,13 +57,13 @@ typedef enum {
 
 typedef struct {
 
-    op_t            op; // tipo di operazione sul server
-    char            pathname[PATH_MAX]; // nome del file
-    int             flag; // flag con cui può essere richiesta l'apertura di un file
-    int             datalen; // assume un significato diverso a seconda di 'op':
-                             //     - READNFILES: numero di files che richiediamo di leggere
-                             //     - WRITEFILE, APPENDTOFILE : lunghezza in byte del file che invieremo subito dopo
-                             //     - altrimenti superfluo (=0)
+    op_t            op;                         // tipo di operazione sul server
+    char            pathname[PATH_MAX];         // nome del file
+    int             flag;                       // flag con cui può essere richiesta l'apertura di un file
+    int             datalen;                    // assume un significato diverso a seconda di 'op':
+                                                //     - READNFILES: numero di files che richiediamo di leggere
+                                                //     - WRITEFILE, APPENDTOFILE : lunghezza in byte del file che invieremo subito dopo
+                                                //     - altrimenti superfluo (=0)
 } msg_request_t;
 
 
@@ -79,6 +79,7 @@ typedef struct {
 
 
 // tipo di dato usato per passare gli argomenti ai thread worker
+
 typedef struct threadArgs {
 
     int pfd;

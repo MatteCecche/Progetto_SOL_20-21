@@ -20,86 +20,105 @@ typedef struct StorageNode {
 
 typedef struct StorageQueue {
 
-  NodoStorage*  head;               // elemento di testa
-  NodoStorage*  tail;               // elemento di coda
+  NodoStorage*  head;                 // elemento di testa
+  NodoStorage*  tail;                 // elemento di coda
   int             cur_numfiles;       // lunghezza ovvero numero di files in storage
   unsigned long   cur_usedstorage;    //dimensione storage attuale in bytes
-  int max_num_files; 			        // numero massimo raggiunto di file memorizzati nel server
-  unsigned long max_used_storage; 	// dimensione massima in bytes raggiunta dal file storage;
-  int replace_occur;			        // numero di volte in cui l’algoritmo di rimpiazzamento della cache è stato eseguito
+  int max_num_files; 			            // numero massimo raggiunto di file memorizzati nel server
+  unsigned long max_used_storage; 	  // dimensione massima in bytes raggiunta dal file storage;
+  int replace_occur;			            // numero di volte in cui l’algoritmo di rimpiazzamento della cache è stato eseguito
   int limit_num_files;                // numero limite di file nello storage
   unsigned long storage_capacity;     // dimensione dello storage in bytes
   pthread_mutex_t qlock;
 
 } CodaStorage;
 
-// Alloca ed inizializza una coda.
+
+NodoStorage* trova_coda_s(CodaStorage *q, char *pathname);
+
+// Restituisce il nodo identificato da pathname
+
+int queue_s_popUntil(CodaStorage *q, int buf_len, int *num_poppedFiles, NodoStorage **poppedHead);
+
+// Estrae dalla coda q un numero di files adeguato per permettere l'inserimento di un file di buf_len bytes,
+//  non superando la capacità dello storage in bytes
+//  (da chiamare con lock (su q))
+
+NodoStorage *cancella_coda_s(CodaStorage *q);
+
+// Estrae dalla coda q un nodo (file)
+//  (da chiamare con lock)
+
+int send_to_client_and_free(int fd, int num_files, NodoStorage *poppedH);
+
+// Comunica al client sul socket fd, i files della coda poppedH, e libera memoria
 
 CodaStorage *init_coda_s(int limit_num_files, unsigned long storage_capacity);
 
-// Sblocca tutti i thread bloccati su le wait
+// Alloca ed inizializza una coda.
 
 void broadcast_coda_s(CodaStorage *q);
 
-// Cancella una coda allocata con initQueue.
+// Sblocca tutti i thread bloccati su le wait
 
 void canc_coda_s(CodaStorage *q);
 
-// Inserisce un nuovo nodo (file identificato da pathname) nella coda
+// Cancella una coda allocata con initQueue.
 
 int ins_coda_s(CodaStorage *q, char *pathname, bool locked, int fd_locker);
 
-// Aggiorna gli opener del nodo, (file) della coda ,identificato da pathname
+// Inserisce un nuovo nodo (file identificato da pathname) nella coda
 
 int aggiornaOpeners_coda_s(CodaStorage *q, char *pathname, bool locked, int fd);
 
-// Cerca nella coda il file identificato da pathname, nel caso lo trovasse, lo comunica al client (sul socket fd)
+// Aggiorna gli opener del nodo, (file) della coda ,identificato da pathname
 
 int readFile_coda_s(CodaStorage *q, char *pathname, int fd);
 
-// Comunica al client (sul socket fd_locker), i files contenuti nella coda, fino ad un massimo di n (se n<=0 comunica tutti i file contenuti nella coda)
+// Cerca nella coda il file identificato da pathname, nel caso lo trovasse, lo comunica al client (sul socket fd)
 
 int readNFile_coda_s(CodaStorage *q, char *pathname, int fd, int n);
+
+// Comunica al client (sul socket fd_locker), i files contenuti nella coda, fino ad un massimo di n (se n<=0 comunica tutti i file contenuti nella coda)
+
+int writeFile_coda_s(CodaStorage *q, char *pathname, int fd, void *buf, int buf_len);
 
 // Cerca nella coda il file identificato da pathname (controlla che l'ultima
 //  operazione sul file sia una open con i flag create e lock), copia il file puntato da buf
 //  ed in caso di successo comunica al client sul socket fd
 
-int writeFile_coda_s(CodaStorage *q, char *pathname, int fd, void *buf, int buf_len);
+int appendToFile_coda_s(CodaStorage *q, char *pathname, int fd, void *buf, int buf_len);
 
 // Cerca nella coda il file identificato da pathname, aggiunge ad esso in append il file puntato da buf ed in caso di successo comunica al client sul socket fd
 
-int appendToFile_coda_s(CodaStorage *q, char *pathname, int fd, void *buf, int buf_len);
-
+int lockFile_coda_s(CodaStorage *q, char *pathname, int fd);
 
 // Cerca di prendere il lock (cioè fd_locker = fd) sul node (file) idetificato da pathname,
 //  in caso di successo comunica al client sul socket fd
 //  (se un altro client ha il lock su quel file, aspetta (wait))
 
-int lockFile_coda_s(CodaStorage *q, char *pathname, int fd);
+int unlockFile_coda_s(CodaStorage *q, char *pathname, int fd);
 
 // Rilascia il lock, ed in caso di successo comunica al client sul socket fd
 
-int unlockFile_coda_s(CodaStorage *q, char *pathname, int fd);
+int closeFile_coda_s(CodaStorage *q, char *pathname, int fd);
 
 // Client fd chiude il file identificato da pathname (si aggiorna opener_q), se lo aveva aperto,
 //  in caso di successo comunica al client sul socket fd
 
-int closeFile_coda_s(CodaStorage *q, char *pathname, int fd);
+int closeFdFile_coda_s(CodaStorage *q, int fd);
 
 // Chiude (aggiornando i loro opener_q) tutti i file aperti da fd, in caso di successo comunica al client sul socket fd
 
-int closeFdFile_coda_s(CodaStorage *q, int fd);
+int removeFile_coda_s(CodaStorage *q, char *pathname, int fd);
 
 // Rimuove il file identificato da pathname dalla coda,
 //  in caso di successo comunica al client sul socket fd
 
-int removeFile_coda_s(CodaStorage *q, char *pathname, int fd);
+void stampalistaFile_coda_s(CodaStorage *q);
 
 // Stampa la lista dei file contenuti nella coda
 
-void stampalistaFile_coda_s(CodaStorage *q);
+unsigned long lung_coda_s(CodaStorage *q);
 
 // Ritorna la lunghezza attuale della coda passata come parametro.
-
-unsigned long lung_coda_s(CodaStorage *q);

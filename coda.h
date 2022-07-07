@@ -34,7 +34,7 @@ int ins_coda(Coda *q, int data);          // Inserisce un dato nella coda
 int estrai_coda(Coda *q);                 // Estrae un dato dalla coda
 
 
-Nodo* trova_coda(Coda *q, int fd);      //Cerca fd nella coda
+Nodo* trova_coda(Coda *q, int fd);        //Cerca fd nella coda
 
 
 int cancella_nodo_coda(Coda *q, int fd);  // Rimuove (se c'è) fd dalla coda

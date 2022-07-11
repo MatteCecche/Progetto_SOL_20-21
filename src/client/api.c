@@ -13,9 +13,9 @@
 #include <stdbool.h>
 
 
-#include "common_def.h"
-#include "common_funcs.h"
-#include "./includes/api.h"
+#include "../../includes/common_def.h"
+#include "../../includes/common_funcs.h"
+#include "../../includes/api.h"
 
 extern int pid;     // processo id del client
 extern bool p;      // bool per stampa info si/no

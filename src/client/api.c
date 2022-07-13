@@ -4,7 +4,7 @@
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <fcntl.h>
-#include <sys/un.h>                 // ind AF_UNIX
+#include <sys/un.h> /* ind AF_UNIX */
 #include <time.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -13,8 +13,8 @@
 #include <stdbool.h>
 
 
-#include "../../includes/common_def.h"
-#include "../../includes/common_funcs.h"
+#include "../../includes/def_tipodato.h"
+#include "../../includes/fun_descrit.h"
 #include "../../includes/api.h"
 
 extern int pid;     // processo id del client
@@ -23,18 +23,95 @@ extern bool p;      // bool per stampa info si/no
 int csfd = -1;
 
 
+int checkPathname(const char* pathname) {
 
-int checkPathname(const char* pathname){
+    if (pathname == NULL || pathname[0] == '\0' ) {
 
-    if (pathname == NULL || pathname[0] == '\0' ) return -1;
+        return -1;
+    }
 
     return 0;
+}
 
+// ----------------------------------------------------------------------- //
+// Legge dal socket 'fd' 'nfiles' files e li scrive in dirname(se != NULL) //
+// ----------------------------------------------------------------------- //
+
+int writeSocketFiles(int fd, int nfiles, char *dirname) {
+
+    if (dirname != NULL && dirname[0] != '\0') {
+
+        struct stat statbuf;
+
+        if (stat(dirname, &statbuf) == 0) {
+
+            if (!S_ISDIR(statbuf.st_mode)) {
+
+                fprintf(stderr, "CLIENT %d: ERRORE %s is not a directory\n", pid, dirname);
+                dirname = NULL;
+
+            } else {                                                                                                //dirname è una directory
+                if (p && nfiles > 0) printf("CLIENT %d: Salvo in dirname %s, %d files\n", pid, dirname, nfiles);
+            }
+        } else {
+
+            fprintf(stderr, "CLIENT %d: ERRORE stat %s, ERRORE %s\n", pid, dirname, strerror(errno));
+            dirname = NULL;
+        }
+    }
+
+    msg_risposta_t res;
+    memset(&res, '\0', sizeof(msg_risposta_t));
+
+
+    int i = 0;
+    while (i < nfiles) {
+
+        memset(&res, 0, sizeof(msg_risposta_t));
+
+        if (readn(csfd, &res, sizeof(msg_risposta_t)) != sizeof(msg_risposta_t)) {
+
+            return -1;
+        }
+
+        if (res.result != 0) {
+
+            errno = EAGAIN; // ha sbagliato qualcosa il server
+
+            return -1;
+        }
+
+        char *buffer = malloc(res.datalen);
+        if(readn(csfd, buffer, res.datalen) != res.datalen) {
+
+            free(buffer);
+
+            return -1;
+        }
+
+        if (p) printf("CLIENT %d: Salva in dirname %s, il file %s di len %d\n", pid, dirname, res.pathname, res.datalen);
+        fflush(stdout);
+
+        if (dirname != NULL && dirname[0] != '\0') {                                                            //dirname è una directory valida (controllato all'inizio della funzione)
+
+            if (createWriteInDir(res.pathname, buffer, res.datalen, dirname) != 0) {                            // creare e scrivere file nella directory
+
+                free(buffer);                                                                                   //errno dovrebbe settarlo creareWriteInDir
+
+                return -1;
+            }
+        }
+
+        free(buffer);
+        i++;
+    }
+
+    return 0;
 }
 
 
 
-int openConnection(const char* sockname, int msec, const struct timespec abstime){
+int openConnection(const char* sockname, int msec, const struct timespec abstime) {
 
     if (sockname == NULL) {
 
@@ -43,24 +120,29 @@ int openConnection(const char* sockname, int msec, const struct timespec abstime
         return -1;
     }
 
-
     struct sockaddr_un sa;
     strncpy(sa.sun_path, sockname, UNIX_PATH_MAX);
     sa.sun_family = AF_UNIX;
 
     csfd = socket(AF_UNIX, SOCK_STREAM, 0);
 
-    if(csfd < 0) return -1;
+    if(csfd < 0) {
 
-    int microseconds = msec *1000;        //  tempo attesa per ripetizione connessione
-    struct timespec current_time;         //  tempo massimo di attesa
+        return -1;
+    }
+
+    int microseconds = msec *1000;
+    struct timespec current_time;
 
     do {
 
         if (connect(csfd, (struct sockaddr*)&sa, sizeof(sa)) != -1) return 0;
 
         if (errno == ENOENT) usleep(microseconds);
-        else return -1;
+        else {
+
+            return -1;
+        }
 
         if(clock_gettime(CLOCK_REALTIME, &current_time) == -1){
 
@@ -73,10 +155,7 @@ int openConnection(const char* sockname, int msec, const struct timespec abstime
     errno =  ETIMEDOUT;
 
     return -1;
-
 }
-
-
 
 int closeConnection(const char* sockname) {
 
@@ -84,10 +163,7 @@ int closeConnection(const char* sockname) {
     csfd = -1;
 
     return close(temp);
-
 }
-
-
 
 int openFile(const char* pathname, int flags, const char* dirname) {
 
@@ -99,28 +175,23 @@ int openFile(const char* pathname, int flags, const char* dirname) {
     }
 
     char abspathname[PATH_MAX];
-    if (!realpath(pathname, abspathname)) return -1;
+    if (!realpath(pathname, abspathname)) {
 
-    msg_request_t *req = malloc(sizeof(msg_request_t));             //creo strut. richiesta server
-    msg_response_t *res = malloc(sizeof(msg_response_t));           //creo strut. risposta server
+        return -1;
+    }
 
-    memset(req, 0, sizeof(msg_request_t));
-    memset(res, 0, sizeof(msg_response_t));
+    msg_richiesta_t *req = malloc(sizeof(msg_richiesta_t));
+    msg_risposta_t *res = malloc(sizeof(msg_risposta_t));
 
-    req->op = OPENFILE;       //setto l'operazione
+    memset(req, 0, sizeof(msg_richiesta_t));
+    memset(res, 0, sizeof(msg_risposta_t));
+
+    req->op = OPENFILE;
     strncpy(req->pathname, abspathname, strlen(abspathname)+1);
     req->flag = flags;
-    req->datalen = 0;         //superfluo
+    req->datalen = 0;                                                             //superfluo
 
-    if(writen(csfd, req, sizeof(msg_request_t)) != sizeof(msg_request_t)) {       //controllo che non ci siano errori
-
-        free(req);
-        free(res);
-
-        return -1;
-    }
-
-    if(readn(csfd, res, sizeof(msg_response_t)) != sizeof(msg_response_t)) {     //controllo che non ci siano errori
+    if(writen(csfd, req, sizeof(msg_richiesta_t)) != sizeof(msg_richiesta_t)) {
 
         free(req);
         free(res);
@@ -128,7 +199,15 @@ int openFile(const char* pathname, int flags, const char* dirname) {
         return -1;
     }
 
-    if(res->result != 0) {              //gestione errore mandata dal server
+    if(readn(csfd, res, sizeof(msg_risposta_t)) != sizeof(msg_risposta_t)) {
+
+        free(req);
+        free(res);
+
+        return -1;
+    }
+
+    if(res->result != 0) {
 
         errno = res->result;
         free(res);
@@ -137,25 +216,23 @@ int openFile(const char* pathname, int flags, const char* dirname) {
         return -1;
     }
 
-    int nfiles = res->datalen;          //numero di files eliminati
-    if (nfiles > 1 || (nfiles != 0 && (req->flag != O_CREATE_LOCK && req->flag != O_CREATE))) {         //errore server
+    int nfiles = res->datalen;                                                 //numero di files eliminati
+    if (nfiles > 1 || (nfiles != 0 && (req->flag != O_CREATE_LOCK && req->flag != O_CREATE))) {
 
         free(res);
         free(req);
-        errno = EAGAIN;
+        errno = EAGAIN;                                                       //ha sbagliato qualcosa il server
 
         return -1;
-
     }
 
     free(req);
+
     free(res);
 
     return writeSocketFiles(csfd, nfiles, dirname);
 
-
 }
-
 
 
 int readFile(const char* pathname, void** buf, size_t* size) {
@@ -168,20 +245,23 @@ int readFile(const char* pathname, void** buf, size_t* size) {
     }
 
     char abspathname[PATH_MAX];
-    if (!realpath(pathname, abspathname)) return -1;
+    if (!realpath(pathname, abspathname)) {
 
-    msg_request_t *req = malloc(sizeof(msg_request_t));
-    msg_response_t *res = malloc(sizeof(msg_response_t));
+        return -1;
+    }
 
-    memset(req, 0, sizeof(msg_request_t));
-    memset(res, 0, sizeof(msg_response_t));
+    msg_richiesta_t *req = malloc(sizeof(msg_richiesta_t));
+    msg_risposta_t *res = malloc(sizeof(msg_risposta_t));
+
+    memset(req, 0, sizeof(msg_richiesta_t));
+    memset(res, 0, sizeof(msg_risposta_t));
 
     req->op = READFILE;
     strncpy(req->pathname, abspathname, strlen(abspathname)+1);
-    req->flag = O_NULL;         //superfluo
-    req->datalen = 0;           //superfluo
+    req->flag = O_NULL;                                                   //superfluo
+    req->datalen = 0;                                                     //superfluo
 
-    if (writen(csfd, req, sizeof(msg_request_t)) != sizeof(msg_request_t)) {
+    if (writen(csfd, req, sizeof(msg_richiesta_t)) != sizeof(msg_richiesta_t)) {
 
         free(req);
         free(res);
@@ -191,18 +271,17 @@ int readFile(const char* pathname, void** buf, size_t* size) {
 
     free(req);
 
-    if (readn(csfd, res, sizeof(msg_response_t)) != sizeof(msg_response_t)) {
+    if (readn(csfd, res, sizeof(msg_risposta_t)) != sizeof(msg_risposta_t)) {
 
         free(res);
 
         return -1;
     }
-
     int result = res->result;
 
     printf("res->datalen: %d\n", res->datalen);
 
-    if(result == 0) {             //successo, mi verrà inviato il file
+    if(result == 0) {                                                     //esito positivo, mi verrà inviato il file
 
         char *buffer = malloc(res->datalen);
         if(readn(csfd, buffer, res->datalen) != res->datalen) {
@@ -219,8 +298,8 @@ int readFile(const char* pathname, void** buf, size_t* size) {
         free(res);
 
         return 0;
-
-    } else {                    //errore, setto errno
+    }
+    else {
 
         free(res);
         errno = result;
@@ -231,21 +310,20 @@ int readFile(const char* pathname, void** buf, size_t* size) {
 }
 
 
-
 int readNFiles(int N, const char* dirname) {
 
-    msg_request_t *req = malloc(sizeof(msg_request_t));
-    msg_response_t *res = malloc(sizeof(msg_response_t));
+    msg_richiesta_t *req = malloc(sizeof(msg_richiesta_t));
+    msg_risposta_t *res = malloc(sizeof(msg_risposta_t));
 
-    memset(req, 0, sizeof(msg_request_t));
-    memset(res, 0, sizeof(msg_response_t));
+    memset(req, 0, sizeof(msg_richiesta_t));
+    memset(res, 0, sizeof(msg_risposta_t));
 
     req->op = READNFILES;
-    req->flag = O_NULL;     //superfluo
-    req->datalen = N;       // numero di files che richiediamo di leggere
+    req->flag = O_NULL;                                           //superfluo
+    req->datalen = N;                                             // numero di files che richiediamo di leggere (datalen ha un significato diverso in altre operazioni)
 
 
-    if (writen(csfd, req, sizeof(msg_request_t)) != sizeof(msg_request_t)) {
+    if (writen(csfd, req, sizeof(msg_richiesta_t)) != sizeof(msg_richiesta_t)) {
 
         free(req);
         free(res);
@@ -255,9 +333,10 @@ int readNFiles(int N, const char* dirname) {
 
     free(req);
 
-    if (readn(csfd, res, sizeof(msg_response_t)) != sizeof(msg_response_t)) {
+    if (readn(csfd, res, sizeof(msg_risposta_t)) != sizeof(msg_risposta_t)) {
 
         free(res);
+
         return -1;
     }
 
@@ -265,19 +344,22 @@ int readNFiles(int N, const char* dirname) {
 
         errno = res->result;
         free(res);
+
         return -1;
     }
 
-    int nfiles = res->datalen;        //numero di files letti
+    int nfiles = res->datalen; //numero di files letti
 
     free(res);
 
     int esitowrites = writeSocketFiles(csfd, nfiles, dirname);
-    if (esitowrites != -1) return nfiles;
-    else return -1;
+    if (esitowrites != -1) {
+
+        return nfiles;
+
+    } else return -1;
 
 }
-
 
 
 int writeFile(const char* pathname, const char* dirname) {
@@ -290,19 +372,25 @@ int writeFile(const char* pathname, const char* dirname) {
     }
 
     char abspathname[PATH_MAX];
-    if (!realpath(pathname, abspathname)) return -1;
+    if (!realpath(pathname, abspathname)) {
+
+        return -1;
+    }
 
     FILE *file;
     void *file_out = NULL;
     unsigned long file_size = 0;
 
-    if ((file = fopen(abspathname,"r")) == NULL) return -1;         //non riesce ad aprire il file
+    if ((file = fopen(abspathname,"r")) == NULL) {
+
+        return -1;
+    }
 
     if (file != NULL) {
 
         fseek(file, 0L, SEEK_END);          // Scopriamo la dimensione del file
         file_size = ftell(file);
-        rewind(file);                       // Imposta l'indicatore di posizione del file puntato da stream all'inizio file
+        rewind(file);
 
         file_out = (void *)malloc(file_size);
         if (file_out == NULL) {
@@ -311,8 +399,9 @@ int writeFile(const char* pathname, const char* dirname) {
 
             return -1;
         } else {
-            size_t bytes_read = fread(file_out, 1, file_size, file);    //leggo file
-            if (bytes_read != file_size){                               //errore
+
+            size_t bytes_read = fread(file_out, 1, file_size, file);
+            if (bytes_read != file_size){
 
                 fclose(file);
                 free(file_out);
@@ -321,22 +410,23 @@ int writeFile(const char* pathname, const char* dirname) {
                 return -1;
             }
         }
+
         fclose(file);
     }
 
 
-    msg_request_t *req = malloc(sizeof(msg_request_t));
-    msg_response_t *res = malloc(sizeof(msg_response_t));
+    msg_richiesta_t *req = malloc(sizeof(msg_richiesta_t));
+    msg_risposta_t *res = malloc(sizeof(msg_risposta_t));
 
-    memset(req, 0, sizeof(msg_request_t));
-    memset(res, 0, sizeof(msg_response_t));
+    memset(req, 0, sizeof(msg_richiesta_t));
+    memset(res, 0, sizeof(msg_risposta_t));
 
     req->op = WRITEFILE;
     strncpy(req->pathname, abspathname, strlen(abspathname)+1);
-    req->flag = O_NULL;       //superfluo
+    req->flag = O_NULL;                                             //superfluo
     req->datalen = file_size;
 
-    if (writen(csfd, req, sizeof(msg_request_t)) != sizeof(msg_request_t)) {
+    if (writen(csfd, req, sizeof(msg_richiesta_t)) != sizeof(msg_richiesta_t)) {
 
         free(file_out);
         free(req);
@@ -357,14 +447,14 @@ int writeFile(const char* pathname, const char* dirname) {
 
     free(file_out);
 
-    if (readn(csfd, res, sizeof(msg_response_t)) != sizeof(msg_response_t)) {
+    if (readn(csfd, res, sizeof(msg_risposta_t)) != sizeof(msg_risposta_t)) {
 
         free(res);
 
         return -1;
     }
 
-    if(res->result != 0) {                      //errore
+    if(res->result != 0) {
 
         errno = res->result;
         free(res);
@@ -372,14 +462,13 @@ int writeFile(const char* pathname, const char* dirname) {
         return -1;
     }
 
-    int nfiles = res->datalen;                  //numero di files eliminati
+    int nfiles = res->datalen;                                    //numero di files eliminati
 
     free(res);
+
     return writeSocketFiles(csfd, nfiles, dirname);
 
 }
-
-
 
 int appendToFile(const char* pathname, void* buf, size_t size, const char* dirname) {
 
@@ -391,20 +480,23 @@ int appendToFile(const char* pathname, void* buf, size_t size, const char* dirna
     }
 
     char abspathname[PATH_MAX];
-    if (!realpath(pathname, abspathname)) return -1;
+    if (!realpath(pathname, abspathname)) {
 
-    msg_request_t *req = malloc(sizeof(msg_request_t));
-    msg_response_t *res = malloc(sizeof(msg_response_t));
+        return -1;
+    }
 
-    memset(req, 0, sizeof(msg_request_t));
-    memset(res, 0, sizeof(msg_response_t));
+    msg_richiesta_t *req = malloc(sizeof(msg_richiesta_t));
+    msg_risposta_t *res = malloc(sizeof(msg_risposta_t));
+
+    memset(req, 0, sizeof(msg_richiesta_t));
+    memset(res, 0, sizeof(msg_risposta_t));
 
     req->op = APPENDTOFILE;
     strncpy(req->pathname, abspathname, strlen(abspathname)+1);
-    req->flag = O_NULL;         //superfluo
+    req->flag = O_NULL;                                         //superfluo
     req->datalen = size;
 
-    if (writen(csfd, req, sizeof(msg_request_t)) != sizeof(msg_request_t)) {
+    if (writen(csfd, req, sizeof(msg_richiesta_t)) != sizeof(msg_richiesta_t)) {
 
         free(req);
         free(res);
@@ -421,14 +513,14 @@ int appendToFile(const char* pathname, void* buf, size_t size, const char* dirna
         return -1;
     }
 
-    if (readn(csfd, res, sizeof(msg_response_t)) != sizeof(msg_response_t)) {
+    if (readn(csfd, res, sizeof(msg_risposta_t)) != sizeof(msg_risposta_t)) {
 
         free(res);
 
         return -1;
     }
 
-    if(res->result != 0) {                          //errore
+    if(res->result != 0) {
 
         errno = res->result;
         free(res);
@@ -436,15 +528,13 @@ int appendToFile(const char* pathname, void* buf, size_t size, const char* dirna
         return -1;
     }
 
-    int nfiles = res->datalen;                      //numero di files eliminati
+    int nfiles = res->datalen;                                    //numero di files eliminati
 
     free(res);
 
     return writeSocketFiles(csfd, nfiles, dirname);
 
 }
-
-
 
 int lockFile(const char* pathname) {
 
@@ -456,20 +546,23 @@ int lockFile(const char* pathname) {
     }
 
     char abspathname[PATH_MAX];
-    if (!realpath(pathname, abspathname)) return -1;
+    if (!realpath(pathname, abspathname)) {
 
-    msg_request_t *req = malloc(sizeof(msg_request_t));
-    msg_response_t *res = malloc(sizeof(msg_response_t));
+        return -1;
+    }
 
-    memset(req, 0, sizeof(msg_request_t));
-    memset(res, 0, sizeof(msg_response_t));
+    msg_richiesta_t *req = malloc(sizeof(msg_richiesta_t));
+    msg_risposta_t *res = malloc(sizeof(msg_risposta_t));
+
+    memset(req, 0, sizeof(msg_richiesta_t));
+    memset(res, 0, sizeof(msg_risposta_t));
 
     req->op = LOCKFILE;
     strncpy(req->pathname, abspathname, strlen(abspathname)+1);
-    req->flag = O_NULL;     //superfluo
-    req->datalen = 0;       //superfluo
+    req->flag = O_NULL;                                         //superfluo
+    req->datalen = 0;                                           //superfluo
 
-    if (writen(csfd, req, sizeof(msg_request_t)) != sizeof(msg_request_t)) {
+    if (writen(csfd, req, sizeof(msg_richiesta_t)) != sizeof(msg_richiesta_t)) {
 
         free(req);
         free(res);
@@ -479,7 +572,8 @@ int lockFile(const char* pathname) {
 
     free(req);
 
-    if (read(csfd, res, sizeof(msg_response_t)) != sizeof(msg_response_t)) {     // mi blocco sulla read, fino a quando il server non mi dà il lock, o errore per qualche motivo
+
+    if (read(csfd, res, sizeof(msg_risposta_t)) != sizeof(msg_risposta_t)) {      // mi blocco sulla read, fino a quando il server non mi dà il lock, o errore per qualche motivo
 
         free(res);
 
@@ -498,8 +592,6 @@ int lockFile(const char* pathname) {
 
     return 0;
 }
-
-
 
 int unlockFile(const char* pathname) {
 
@@ -511,20 +603,23 @@ int unlockFile(const char* pathname) {
     }
 
     char abspathname[PATH_MAX];
-    if (!realpath(pathname, abspathname)) return -1;
+    if (!realpath(pathname, abspathname)) {
 
-    msg_request_t *req = malloc(sizeof(msg_request_t));
-    msg_response_t *res = malloc(sizeof(msg_response_t));
+        return -1;
+    }
 
-    memset(req, 0, sizeof(msg_request_t));
-    memset(res, 0, sizeof(msg_response_t));
+    msg_richiesta_t *req = malloc(sizeof(msg_richiesta_t));
+    msg_risposta_t *res = malloc(sizeof(msg_risposta_t));
+
+    memset(req, 0, sizeof(msg_richiesta_t));
+    memset(res, 0, sizeof(msg_risposta_t));
 
     req->op = UNLOCKFILE;
     strncpy(req->pathname, abspathname, strlen(abspathname)+1);
-    req->flag = O_NULL;         //superfluo
-    req->datalen = 0;           //superfluo
+    req->flag = O_NULL;                                                         //superfluo
+    req->datalen = 0;                                                           //superfluo
 
-    if (writen(csfd, req, sizeof(msg_request_t)) != sizeof(msg_request_t)) {
+    if (writen(csfd, req, sizeof(msg_richiesta_t)) != sizeof(msg_richiesta_t)) {
 
         free(req);
         free(res);
@@ -534,7 +629,7 @@ int unlockFile(const char* pathname) {
 
     free(req);
 
-    if (readn(csfd, res, sizeof(msg_response_t)) != sizeof(msg_response_t)) {
+    if (readn(csfd, res, sizeof(msg_risposta_t)) != sizeof(msg_risposta_t)) {
 
         free(res);
 
@@ -553,8 +648,6 @@ int unlockFile(const char* pathname) {
 
     return 0;
 }
-
-
 
 int closeFile(const char* pathname) {
 
@@ -566,20 +659,23 @@ int closeFile(const char* pathname) {
     }
 
     char abspathname[PATH_MAX];
-    if (!realpath(pathname, abspathname)) return -1;
+    if (!realpath(pathname, abspathname)) {
 
-    msg_request_t *req = malloc(sizeof(msg_request_t));
-    msg_response_t *res = malloc(sizeof(msg_response_t));
+        return -1;
+    }
 
-    memset(req, 0, sizeof(msg_request_t));
-    memset(res, 0, sizeof(msg_response_t));
+    msg_richiesta_t *req = malloc(sizeof(msg_richiesta_t));
+    msg_risposta_t *res = malloc(sizeof(msg_risposta_t));
+
+    memset(req, 0, sizeof(msg_richiesta_t));
+    memset(res, 0, sizeof(msg_risposta_t));
 
     req->op = CLOSEFILE;
     strncpy(req->pathname, abspathname, strlen(abspathname)+1);
-    req->flag = O_NULL;         //superfluo
-    req->datalen = 0;           //superfluo
+    req->flag = O_NULL;                                                         //superfluo
+    req->datalen = 0;                                                           //superfluo
 
-    if (writen(csfd, req, sizeof(msg_request_t)) != sizeof(msg_request_t)) {
+    if (writen(csfd, req, sizeof(msg_richiesta_t)) != sizeof(msg_richiesta_t)) {
 
         free(req);
         free(res);
@@ -589,7 +685,7 @@ int closeFile(const char* pathname) {
 
     free(req);
 
-    if (readn(csfd, res, sizeof(msg_response_t)) != sizeof(msg_response_t)) {
+    if (readn(csfd, res, sizeof(msg_risposta_t)) != sizeof(msg_risposta_t)) {
 
         free(res);
 
@@ -609,8 +705,6 @@ int closeFile(const char* pathname) {
     return 0;
 }
 
-
-
 int removeFile(const char* pathname) {
 
     if (checkPathname(pathname) != 0) {
@@ -621,20 +715,23 @@ int removeFile(const char* pathname) {
     }
 
     char abspathname[PATH_MAX];
-    if (!realpath(pathname, abspathname)) return -1;
+    if (!realpath(pathname, abspathname)) {
 
-    msg_request_t *req = malloc(sizeof(msg_request_t));
-    msg_response_t *res = malloc(sizeof(msg_response_t));
+        return -1;
+    }
 
-    memset(req, 0, sizeof(msg_request_t));
-    memset(res, 0, sizeof(msg_response_t));
+    msg_richiesta_t *req = malloc(sizeof(msg_richiesta_t));
+    msg_risposta_t *res = malloc(sizeof(msg_risposta_t));
+
+    memset(req, 0, sizeof(msg_richiesta_t));
+    memset(res, 0, sizeof(msg_risposta_t));
 
     req->op = REMOVEFILE;
     strncpy(req->pathname, abspathname, strlen(abspathname)+1);
-    req->flag = O_NULL;         //superfluo
-    req->datalen = 0;           //superfluo
+    req->flag = O_NULL;                                                         //superfluo
+    req->datalen = 0;                                                           //superfluo
 
-    if (writen(csfd, req, sizeof(msg_request_t)) != sizeof(msg_request_t)) {
+    if (writen(csfd, req, sizeof(msg_richiesta_t)) != sizeof(msg_richiesta_t)) {
 
         free(req);
         free(res);
@@ -644,7 +741,7 @@ int removeFile(const char* pathname) {
 
     free(req);
 
-    if (readn(csfd, res, sizeof(msg_response_t)) != sizeof(msg_response_t)) {
+    if (readn(csfd, res, sizeof(msg_risposta_t)) != sizeof(msg_risposta_t)) {
 
         free(res);
 
@@ -659,73 +756,6 @@ int removeFile(const char* pathname) {
         errno = result;
 
         return -1;
-    }
-
-    return 0;
-}
-
-
-
-int writeSocketFiles(int fd, int nfiles, char *dirname) {
-
-    if (dirname != NULL && dirname[0] != '\0') {
-
-        struct stat statbuf;
-        if (stat(dirname, &statbuf) == 0) {
-
-            if (!S_ISDIR(statbuf.st_mode)) {
-
-                fprintf(stderr, "Client n'( %d ) :  %s non e' una cartella\n", pid, dirname);
-                dirname = NULL;
-            } else if (p && nfiles > 0) printf("Client n'( %d ) : Salvo nella cartella %s, %d files\n", pid, dirname, nfiles);
-        } else {
-
-            fprintf(stderr, "Client n'( %d ) :  stat %s, ERRORE %s\n", pid, dirname, strerror(errno));
-            dirname = NULL;
-        }
-    }
-
-    msg_response_t res;
-    memset(&res, '\0', sizeof(msg_response_t));
-
-
-    int i = 0;
-    while (i < nfiles) {
-
-        memset(&res, 0, sizeof(msg_response_t));
-
-        if (readn(csfd, &res, sizeof(msg_response_t)) != sizeof(msg_response_t)) return -1;
-
-        if (res.result != 0) {
-
-            errno = EAGAIN;       // ha sbagliato qualcosa il server
-
-            return -1;
-        }
-
-        char *buffer = malloc(res.datalen);
-        if(readn(csfd, buffer, res.datalen) != res.datalen) {
-
-            free(buffer);
-
-            return -1;
-        }
-
-        if (p) printf("Client n'( %d ) : Salva nella cartella %s, il file %s di len %d\n", pid, dirname, res.pathname, res.datalen);
-        fflush(stdout);
-
-        if (dirname != NULL && dirname[0] != '\0') {            //dirname è una directory valida (controllato all'inizio della funzione)
-
-            if (createWriteInDir(res.pathname, buffer, res.datalen, dirname) != 0) {      // creare e scrivere file nella directory
-
-                free(buffer);
-
-                return -1;
-            }
-        }
-
-        free(buffer);
-        i++;
     }
 
     return 0;

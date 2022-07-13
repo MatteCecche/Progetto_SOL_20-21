@@ -6,124 +6,112 @@
 #include <pthread.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/un.h>         // ind AF_UNIX
+#include <sys/un.h> /* ind AF_UNIX */
 #include <sys/stat.h>
 #include <dirent.h>
 #include <fcntl.h>
 #include <stdbool.h>
 
 #include "../../includes/api.h"
-#include "../../includes/common_def.h"
-#include "../../includes/common_funcs.h"
-#include "../../includes/client_def.h"
-#include "../../opt_queue.h"
-#include "../../util.h"
+#include "../../includes/def_tipodato.h"
+#include "../../includes/fun_descrit.h"
+#include "../../includes/def_client.h"
+#include "../../includes/oper_coda.h"
+#include "../../includes/util.h"
 
 #define N 100
 
 
-// -------------------- variabili globali -------------------- //
+// -------------------------------------------------------------------- variabili globali -------------------------------------------------------------------- //
+
 char sockname[N];
-int time_ms = 0;                // tempo in millisecondi tra l'invio di due richieste successive al server
-int cur_dirFiles_read = 0;      // per recWrite
-bool p = false;                 // opzione print
-int pid;                        // process id del client
-
-
-// -------------------- Funzioni -------------------- //
+int time_ms = 0;                        //tempo in millisecondi tra l'invio di due richieste successive al server
+int cur_dirFiles_read = 0;              // per recWrite
+bool p = false;                         // opzione print
+int pid;                                // process id del client
 
 
 
-// Controlla se il primo carattere della stringa 'dir' è un '.'
-
-int isdot(const char dir[]);
-
-
-
-//  Visita 'readfrom_dir' ricorsivamente fino a quando non si leggono ‘n‘ file; se n=0 non c’è un limite
-//  superiore al numero di file da inviare al server (tuttavia non è detto che il server possa scriverli tutti)
-//  Se 'del_dir' è diverso da NULL, i file eventualmente spediti dal server perchè espulsi dalla cache dovranno
-//  essere scritti in ‘del_dir’
-
-int recWrite(char *readfrom_dir, char *del_dir, long n);
-
-
-
-//  Effettua il parsing di 'arg', ricavando il nome della cartella da cui prendere
-//  i file da inviare al server, ed in caso il numero di file (n).
-//  Se la cartella contiene altre cartelle, queste vengono visitate ricorsivamente
-//  fino a quando non si leggono ‘n‘ file; se n=0 (o non è specificato) non c’è un limite
-//  superiore al numero di file da inviare al server (tuttavia non è detto che il server possa scriverli tutti)
-//  Se ‘dirname’ è diverso da NULL, i file eventualmente spediti dal server perchè espulsi dalla cache dovranno
-//  essere scritti in ‘dirname’
+// ------------------------------------------------------------------------------------------------------------ //
+//  Effettua il parsing di 'arg', ricavando il nome della cartella da cui prendere                              //
+//  i file da inviare al server, ed in caso il numero di file (n).                                              //
+//  Se la cartella contiene altre cartelle, queste vengono visitate ricorsivamente                              //
+//  fino a quando non si leggono ‘n‘ file; se n=0 (o non è specificato) non c’è un limite                       //
+//  superiore al numero di file da inviare al server (tuttavia non è detto che il server possa scriverli tutti) //
+//  Se ‘dirname’ è diverso da NULL, i file eventualmente spediti dal server perchè espulsi dalla cache dovranno //
+//  essere scritti in ‘dirname’                                                                                 //
+// ------------------------------------------------------------------------------------------------------------ //
 
 int gest_writeDirname(char *arg, char *dirname);
 
+// -------------------------------------------------------------------------------------------------------------- //
+//  Effettua il parsing di 'arg', ricavando la lista dei file da scrivere nel server                              //
+//  Se ‘dirname’ è diverso da NULL, i file eventualmente spediti dal server perchè espulsi dalla cache dovranno   //
+//  essere scritti in ‘dirname’                                                                                   //
+// -------------------------------------------------------------------------------------------------------------- //
 
-
-//  Effettua il parsing di 'arg', ricavando la lista dei file da scrivere nel server
-//  Se ‘dirname’ è diverso da NULL, i file eventualmente spediti dal server perchè espulsi dalla cache dovranno
-//  essere scritti in ‘dirname’
 
 int gest_writeList(char *arg, char *dirname);
 
+// ------------------------------------------------------------------------------------------------------------ //
+//  Effettua il parsing di 'arg', ricavando il file del server a cui fare append, e il file (del file system)   //
+//  da cui leggere il contenuto da aggiungere                                                                   //
+//  Se ‘dirname’ è diverso da NULL, i file eventualmente spediti dal server perchè espulsi dalla cache dovranno //
+//  essere scritti in ‘dirname’                                                                                 //
+// ------------------------------------------------------------------------------------------------------------ //
 
-
-//  Effettua il parsing di 'arg', ricavando il file del server a cui fare append, e il file (del file system)
-//  da cui leggere il contenuto da aggiungere
-//  Se ‘dirname’ è diverso da NULL, i file eventualmente spediti dal server perchè espulsi dalla cache dovranno
-//  essere scritti in ‘dirname’
 
 int gest_Append(char *arg, char *dirname);
 
-
-
-//Effettua il parsing di 'arg', ricavando la lista dei file da leggere dal server
-//  Se ‘dirname’ è diverso da NULL, i file letti dal server dovranno
-//  essere scritti in ‘dirname’
+// ------------------------------------------------------------------------------ //
+//Effettua il parsing di 'arg', ricavando la lista dei file da leggere dal server //
+//  Se ‘dirname’ è diverso da NULL, i file letti dal server dovranno              //
+//  essere scritti in ‘dirname’                                                   //
+// ------------------------------------------------------------------------------ //
 
 int gest_readList(char *arg, char *dirname);
 
-
-
-//  Effettua il parsing di 'arg', ricavando il numero di file da leggere
-//  Se tale numero è 0,  allora vengono letti tutti i file presenti nel server
-//  Se ‘dirname’ è diverso da NULL, i file letti dal server dovranno essere
-//  scritti in ‘dirname’
+// ---------------------------------------------------------------------------- //
+//  Effettua il parsing di 'arg', ricavando il numero di file da leggere        //
+//  Se tale numero è 0,  allora vengono letti tutti i file presenti nel server  //
+//  Se ‘dirname’ è diverso da NULL, i file letti dal server dovranno essere     //
+//  scritti in ‘dirname’                                                        //
+// ---------------------------------------------------------------------------- //
 
 int gest_readN(char *arg, char *dirname);
 
-
-
-//  Effettua il parsing di 'arg', ricavando la lista dei file su cui acquisire
-//  la mutua esclusione
+// ---------------------------------------------------------------------------- //
+//  Effettua il parsing di 'arg', ricavando la lista dei file su cui acquisire  //
+//  la mutua esclusione                                                         //
+// ---------------------------------------------------------------------------- //
 
 int gest_lockList(char *arg);
 
-
-
-//  Effettua il parsing di 'arg', ricavando la lista dei file  su cui rilasciare
-//  la mutua esclusione
+// ------------------------------------------------------------------------------ //
+//  Effettua il parsing di 'arg', ricavando la lista dei file  su cui rilasciare  //
+//  la mutua esclusione                                                           //
+// ------------------------------------------------------------------------------ //
 
 int gest_unlockList(char *arg);
 
-
-
-//  Effettua il parsing di 'arg', ricavando la lista dei file da rimuovere
-//  dal server se presenti
+// ------------------------------------------------------------------------ //
+//  Effettua il parsing di 'arg', ricavando la lista dei file da rimuovere  //
+//  dal server se presenti                                                  //
+// ------------------------------------------------------------------------ //
 
 int gest_removeList(char *arg);
 
-
-
-// Stampa le opzione possibili
+// ---------------------------- //
+// Stampa le opzione possibili  //
+// ---------------------------- //
 
 static void usage(int pid);
 
 
 
 
-int main(int argc, char *argv[]){
+
+int main(int argc, char *argv[]) {
 
     if (argc == 1) {
 
@@ -138,16 +126,15 @@ int main(int argc, char *argv[]){
 
     pid = getpid();
 
-    OptQueue_t *q = opt_queue_init();
+    OperCoda_t *q = init_coda_oper();
     if (!q){
 
-        fprintf(stderr, "Client n'( %d ) : [ERRORE] initQueue fallita\n", pid);
+        fprintf(stderr, "CLIENT %d: ERRORE initQueue fallita\n", pid);
 
         return -1;
     }
 
-    // parsing degli argomenti ed opportuna costruzione della coda delle operazioni
-    while((opt = getopt(argc, argv, ":hf:w:W:D:a:A:r:R:d:t:l:u:c:p")) != -1){
+    while((opt = getopt(argc, argv, ":hf:w:W:D:a:A:r:R:d:t:l:u:c:p")) != -1) {    // parsing degli argomenti ed opportuna costruzione della coda delle operazioni
 	    switch(opt) {
 	        case 'h':
                 usage(pid);
@@ -157,55 +144,57 @@ int main(int argc, char *argv[]){
                 strcpy(sockname, optarg);
 	            break;
 	        case 'w':
-                res = opt_queue_push(q, WRITEDIRNAME, optarg);
+                res = ins_coda_oper(q, WRITEDIRNAME, optarg);
 	            break;
 	        case 'W':
-                res = opt_queue_push(q, WRITELIST, optarg);
+                res = ins_coda_oper(q, WRITELIST, optarg);
 	            break;
 	        case 'D':
-                res = opt_queue_setWDirname(q, optarg);
+                res = setWDirname_coda_oper(q, optarg);
 	            break;
 	        case 'a':
-                res = opt_queue_push(q, APPEND, optarg);
+                res = ins_coda_oper(q, APPEND, optarg);
 	            break;
 	        case 'A':
-                res = opt_queue_setADirname(q, optarg);
+                res = setADirname_coda_oper(q, optarg);
 	            break;
 	        case 'r':
-                res = opt_queue_push(q, READLIST, optarg);
+                res = ins_coda_oper(q, READLIST, optarg);
 	            break;
 	        case 'R':
                 if (optarg != NULL) {
                     printf("optarg: %s\n",optarg);
-                    if (optarg[0] != '-') res = opt_queue_push(q, READN, optarg);
-                    else {
+                    if (optarg[0] != '-') {
+                        res = ins_coda_oper(q, READN, optarg);
+                    } else {
                         optarg = argv[optind--];
-                        res = opt_queue_push(q, READN, "n=0");
+                        res = ins_coda_oper(q, READN, "n=0");
                     }
-                } else res = opt_queue_push(q, READN, "n=0");
+
+                } else {
+                    res = ins_coda_oper(q, READN, "n=0");
+                }
 	            break;
 	        case 'd':
-                res = opt_queue_setRDirname(q, optarg);   //controlla se tail lista c'è READNFILES o READLIST
+                res = setRDirname_coda_oper(q, optarg);                         //controlla se tail lista c'è READNFILES o READLIST
 	            break;
 	        case 't':
                 time_ms = atoi(optarg);
                 if (time_ms == 0) {
-
-                    fprintf(stderr, "Client n'( %d ) : [ERRORE] -t numero richiesto\n", pid);
+                    fprintf(stderr, "CLIENT %d: ERRORE -t number required\n", pid);
                     usage(pid);
-                    opt_queue_delete(q);
-
+                    canc_coda_oper(q);
                     return -1;
                 }
 	            break;
 	        case 'l':
-                res = opt_queue_push(q, LOCKLIST, optarg);
+                res = ins_coda_oper(q, LOCKLIST, optarg);
 	            break;
 	        case 'u':
-                res = opt_queue_push(q, UNLOCKLIST, optarg);
+                res = ins_coda_oper(q, UNLOCKLIST, optarg);
 	            break;
 	        case 'c':
-                res = opt_queue_push(q, REMOVELIST, optarg);
+                res = ins_coda_oper(q, REMOVELIST, optarg);
 	            break;
 	        case 'p':
                 p = true;
@@ -214,26 +203,26 @@ int main(int argc, char *argv[]){
                 switch (optopt)
                 {
                 case 'R':
-                    res = opt_queue_push(q, READN, "n=0");
+                    res = ins_coda_oper(q, READN, "n=0");
 
                     break;
                 default:
                     usage(pid);
-                    opt_queue_delete(q);
+                    canc_coda_oper(q);
                     return -1;
                 }
                 break;
 	        default:
                 usage(pid);
-                opt_queue_delete(q);
+                canc_coda_oper(q);
                 return -1;
 	            break;
 	    }
 
-        if (res != 0){
+        if (res != 0) {
 
-            opt_queue_delete(q);
-            printf("Client n'( %d ) : [ERRORE] Operation queue ERRORE\n", pid);
+            canc_coda_oper(q);
+            printf("CLIENT %d: Operation coda ERRORE\n", pid);
 
             return -1;
         }
@@ -243,76 +232,77 @@ int main(int argc, char *argv[]){
     struct timespec current_time;
     if (clock_gettime(CLOCK_REALTIME, &current_time) == -1) {
 
-        opt_queue_delete(q);
+        canc_coda_oper(q);
 
         return -1;
     }
-
-    current_time.tv_sec = current_time.tv_sec + 10;                   //scelto arbitrariamente
+    current_time.tv_sec = current_time.tv_sec + 10;                           //scelto arbitrariamente
     current_time.tv_nsec = current_time.tv_nsec + 0;
-    if (openConnection(sockname, 1000, current_time) == -1) {         // msec = 1000 scelto arbitrariamente
+    if (openConnection(sockname, 1000, current_time) == -1) {                 // msec = 1000 scelto arbitrariamente
 
-        fprintf(stderr, "Client n'( %d ) : openConnection %s, ERRORE %s\n", pid, sockname, strerror(errno));
-
-        opt_queue_delete(q);
+        fprintf(stderr, "CLIENT %d: ERRORE openConnection %s, ERRORE %s\n", pid, sockname, strerror(errno));
+        canc_coda_oper(q);
 
         return -1;
     }
 
     int gest_result = 0;
 
-    if (q == NULL) {        // "pop" su coda
+    if (q == NULL) {                                                          // "pop" su coda
 
-        printf("Client n'( %d ) : Nessuna richiesta rilevata\n", pid);
+        printf("CLIENT %d: Nessuna richiesta rilevata\n", pid);
 
         return 0;
     }
     while (q->head != NULL) {
         switch (q->head->opt) {
             case WRITEDIRNAME:
-                printf("Client n'( %d ) : Richiesta scritture\n", pid);
+                printf("CLIENT %d: Richiesta scritture\n", pid);
                 gest_result = gest_writeDirname(q->head->arg, q->head->dirname);
                 break;
             case WRITELIST:
-                printf("Client n'( %d ) : Richiesta scritture\n", pid);
+                printf("CLIENT %d: Richiesta scritture\n", pid);
                 gest_result = gest_writeList(q->head->arg, q->head->dirname);
                 break;
             case APPEND:
-                printf("Client n'( %d ) : Richiesta append\n", pid);
+                printf("CLIENT %d: Richiesta append\n", pid);
                 gest_result = gest_Append(q->head->arg, q->head->dirname);
                 break;
             case READLIST:
-                printf("Client n'( %d ) : Richiesta letture\n", pid);
+                printf("CLIENT %d: Richiesta letture\n", pid);
                 gest_result = gest_readList(q->head->arg, q->head->dirname);
                 break;
             case READN:
-                printf("Client n'( %d ) : Richiesta letture\n", pid);
+                printf("CLIENT %d: Richiesta letture\n", pid);
                 gest_result = gest_readN(q->head->arg, q->head->dirname);
                 break;
             case LOCKLIST:
-                printf("Client n'( %d ) : Richiesta lock\n", pid);
+                printf("CLIENT %d: Richiesta lock\n", pid);
                 gest_result = gest_lockList(q->head->arg);
                 break;
             case UNLOCKLIST:
-                printf("Client n'( %d ) : Richiesta unlock\n", pid);
+                printf("CLIENT %d: Richiesta unlock\n", pid);
                 gest_result = gest_unlockList(q->head->arg);
                 break;
             case REMOVELIST:
-                printf("Client n'( %d ) : Richiesta remove\n", pid);
+                printf("CLIENT %d: Richiesta remove\n", pid);
                 gest_result = gest_removeList(q->head->arg);
                 break;
             default:
-                opt_queue_delete(q);
+                canc_coda_oper(q);
                 return -1;
                 break;
         }
 
         if (gest_result != 0) {
-            opt_queue_delete(q);
+
+            canc_coda_oper(q);
+
             return -1;
         }
 
-        OptNode_t *temp = q->head;
+
+        OperNodo_t *temp = q->head;                                             //fare free del nodo
         q->head = q->head->next;
         free(temp);
 
@@ -323,7 +313,8 @@ int main(int argc, char *argv[]){
 
     if (closeConnection(sockname) == -1) {
 
-        fprintf(stderr, "Client n'( %d ) : [ERRORE] closeConnection", pid);
+        fprintf(stderr, "CLIENT %d: ERRORE closeConnection", pid);
+
         return -1;
     }
 
@@ -331,6 +322,9 @@ int main(int argc, char *argv[]){
 }
 
 
+// ------------------------------------------------------------ //
+// Controlla se il primo carattere della stringa 'dir' è un '.' //
+// ------------------------------------------------------------ //
 
 int isdot(const char dir[]) {
 
@@ -340,6 +334,13 @@ int isdot(const char dir[]) {
 
 }
 
+// ------------------------------------------------------------------------------------------------------------ //
+//  Visita 'readfrom_dir' ricorsivamente fino a quando non si leggono ‘n‘ file; se n=0 non c’è un limite        //
+//  superiore al numero di file da inviare al server (tuttavia non è detto che il server possa scriverli tutti) //
+//  Se 'del_dir' è diverso da NULL, i file eventualmente spediti dal server perchè espulsi dalla cache dovranno //
+//  essere scritti in ‘del_dir’                                                                                 //
+// ------------------------------------------------------------------------------------------------------------ //
+
 
 int recWrite(char *readfrom_dir, char *del_dir, long n) {
 
@@ -347,14 +348,14 @@ int recWrite(char *readfrom_dir, char *del_dir, long n) {
 
     if (stat(readfrom_dir, &statbuf) != 0) {
 
-        fprintf(stderr, "Client n'( %d ) : writeDirname stat %s, [ERRORE] %s\n", pid, readfrom_dir, strerror(errno));
+        fprintf(stderr, "CLIENT %d: ERRORE writeDirname stat %s, ERRORE %s\n", pid, readfrom_dir, strerror(errno));
 
         return -1;
     }
 
     if (!S_ISDIR(statbuf.st_mode)) {
 
-        fprintf(stderr, "Client n'( %d ) : writeDirname , %s non e' una cartella\n", pid, readfrom_dir);
+        fprintf(stderr, "CLIENT %d: ERRORE writeDirname , %s is not a directory\n", pid, readfrom_dir);
 
         return -1;
     }
@@ -362,23 +363,25 @@ int recWrite(char *readfrom_dir, char *del_dir, long n) {
     DIR * dir;
     if ((dir = opendir(readfrom_dir)) == NULL) {
 
-        fprintf(stderr, "Client n'( %d ) : writeDirname opendir %s, [ERRORE] %s\n", pid, readfrom_dir, strerror(errno));
+        fprintf(stderr, "CLIENT %d: ERRORE writeDirname opendir %s, ERRORE %s\n", pid, readfrom_dir, strerror(errno));
 
         return -1;
     } else {
+
         struct dirent *file;
 
         while((errno = 0, file = readdir(dir)) != NULL && (cur_dirFiles_read < n || n == 0)) {
 
-            if (isdot(file->d_name)) continue;
+          if (isdot(file->d_name)) continue;
 
-	          struct stat statbuf2;
-            char filename[PATH_MAX];
-	          int len1 = strlen(readfrom_dir);
-	          int len2 = strlen(file->d_name);
-	          if ((len1+len2+2)>PATH_MAX) {
+	        struct stat statbuf2;
+          char filename[PATH_MAX];
+	        int len1 = strlen(readfrom_dir);
+	        int len2 = strlen(file->d_name);
+	        if ((len1+len2+2)>PATH_MAX) {
 
-                fprintf(stderr, "Client n'( %d ) : writeDirname, [ERRORE] : UNIX_PATH_MAX troppo piccolo\n", pid);
+                fprintf(stderr, "CLIENT %d: ERRORE writeDirname, ERRORE : UNIX_PATH_MAX troppo piccolo\n", pid);
+
                 return -1;
 	        }
 
@@ -387,37 +390,40 @@ int recWrite(char *readfrom_dir, char *del_dir, long n) {
 	        strncat(filename,file->d_name, PATH_MAX-1);
 
             if (stat(filename, &statbuf2) == -1) {
-                fprintf(stderr, "Client n'( %d ) : writeDirname stat %s, [ERRORE] %s\n", pid, filename, strerror(errno));
+
+                fprintf(stderr, "CLIENT %d: ERRORE writeDirname stat %s, ERRORE %s\n", pid, filename, strerror(errno));
 
                 return -1;
 	        }
 
 	        if (S_ISDIR(statbuf2.st_mode)) {
+
                 if(recWrite(filename, del_dir, n) == -1) return -1;
 	        } else {
                 cur_dirFiles_read++;
 
                 if (openFile(filename, O_CREATE_LOCK, del_dir) == -1) {
 
-                    fprintf(stderr, "Client n'( %d ) : writeDirname openFile %s, [ERRORE] %s\n", pid, filename, strerror(errno));
+                    fprintf(stderr, "CLIENT %d: ERRORE writeDirname openFile %s, ERRORE %s\n", pid, filename, strerror(errno));
 
                     return -1;
                 }
                 if (writeFile(filename, del_dir) == -1) {
 
-                    fprintf(stderr, "Client n'( %d ) : writeDirname writeFile %s, [ERRORE] %s\n", pid, filename, strerror(errno));
+                    fprintf(stderr, "CLIENT %d: ERRORE writeDirname writeFile %s, ERRORE %s\n", pid, filename, strerror(errno));
 
                     return -1;
                 }
 
-                if (closeFile(filename) == -1) {              //fa unlock
 
-                    fprintf(stderr, "Client n'( %d ) : writeDirname closeFile %s, [ERRORE] %s\n", pid, filename, strerror(errno));
+                if (closeFile(filename) == -1) {                                                                              //fa anche unlock
+
+                    fprintf(stderr, "CLIENT %d: ERRORE writeDirname closeFile %s, ERRORE %s\n", pid, filename, strerror(errno));
 
                     return -1;
                 }
 
-                if (p) printf("Client n'( %d ) : writeDirname %s, [SUCCESSO]\n", pid, filename);
+                if (p) printf("CLIENT %d: writeDirname %s, SUCCESSO\n", pid, filename);
 
             }
 	    }
@@ -426,7 +432,7 @@ int recWrite(char *readfrom_dir, char *del_dir, long n) {
 
 	    if (errno != 0) {
 
-            fprintf(stderr, "Client n'( %d ) : writeDirname readdir, [ERRORE] %s\n", pid, strerror(errno));
+            fprintf(stderr, "CLIENT %d: ERRORE writeDirname readdir, ERRORE %s\n", pid, strerror(errno));
 
             return -1;
         }
@@ -439,7 +445,7 @@ int gest_writeDirname(char *arg, char *dirname) {
 
     if (arg == NULL) {
 
-        fprintf(stderr, "Client n'( %d ) : writeDirname, [ERRORE] invalid arg\n", pid);
+        fprintf(stderr, "CLIENT %d: ERRORE writeDirname, ERRORE invalid arg\n", pid);
 
         return -1;
     }
@@ -451,22 +457,22 @@ int gest_writeDirname(char *arg, char *dirname) {
     token = strtok_r(rest, ",", &rest);
     if (rest != NULL) {
 
-        if (isNumber(&(rest[2]), &n) != 0)    n = 0;          // client ha sbagliato a scrivere, metto n=0 (default)
+        if (isNumber(&(rest[2]), &n) != 0)    n = 0;     // client ha sbagliato a scrivere, metto n=0 (default)
     }
 
-    if (dirname != NULL && dirname[0] != '\0') {              // controllo se dirname è una directory
 
+    if (dirname != NULL && dirname[0] != '\0') {        // controllo se dirname è una directory
         struct stat statbuf;
         if(stat(dirname, &statbuf) == 0) {
 
             if (!S_ISDIR(statbuf.st_mode)) {
 
-                fprintf(stderr, "Client n'( %d ) : writeDirname, %s non e' una cartella\n", pid, dirname);
+                fprintf(stderr, "CLIENT %d: ERRORE writeDirname, %s is not a directory\n", pid, dirname);
 	              dirname = NULL;
             }
         } else {
 
-            fprintf(stderr, "Client n'( %d ) : writeDirname stat %s, [ERRORE] %s\n", pid, dirname, strerror(errno));
+            fprintf(stderr, "CLIENT %d: ERRORE writeDirname stat %s, ERRORE %s\n", pid, dirname, strerror(errno));
             dirname = NULL;
         }
     }
@@ -483,7 +489,7 @@ int gest_writeList(char *arg, char *dirname) {
 
     if (arg == NULL) {
 
-        fprintf(stderr, "Client n'( %d ) : writeList, [ERRORE] invalid arg\n", pid);
+        fprintf(stderr, "CLIENT %d: ERRORE writeList, ERRORE invalid arg\n", pid);
 
         return -1;
     }
@@ -492,32 +498,34 @@ int gest_writeList(char *arg, char *dirname) {
     char *rest = arg;
 
     while (token = strtok_r(rest, ",", &rest)) {
-        // per ciascun file:
-        if (openFile(token, O_CREATE_LOCK, dirname) == -1) {
 
-            fprintf(stderr, "Client n'( %d ) : writeList openFile %s, [ERRORE] %s\n", pid, token, strerror(errno));
+        if (openFile(token, O_CREATE_LOCK, dirname) == -1) {                    // per ciascun file:
+
+            fprintf(stderr, "CLIENT %d: ERRORE writeList openFile %s, ERRORE %s\n", pid, token, strerror(errno));
 
             return -1;
         }
 
         if (writeFile(token, dirname) == -1) {
 
-            fprintf(stderr, "Client n'( %d ) : writeList writeFile %s, [ERRORE] %s\n", pid, token, strerror(errno));
+            fprintf(stderr, "CLIENT %d: ERRORE writeList writeFile %s, ERRORE %s\n", pid, token, strerror(errno));
 
             return -1;
         }
 
-        if (closeFile(token) == -1) {           //fa la unlock
 
-            fprintf(stderr, "Client n'( %d ) : writeList closeFile %s, [ERRORE] %s\n", pid, token, strerror(errno));
+        if (closeFile(token) == -1) {                                             //fa la unlock anche
+
+            fprintf(stderr, "CLIENT %d: ERRORE writeList closeFile %s, ERRORE %s\n", pid, token, strerror(errno));
 
             return -1;
         }
 
-        if (p) printf("Client n'( %d ) : writeDirname %s, [SUCCESSO]\n", pid, token);
+        if (p) printf("CLIENT %d: writeDirname %s, SUCCESSO\n", pid, token);
     }
 
     return 0;
+
 }
 
 
@@ -525,7 +533,7 @@ int gest_Append(char *arg, char *dirname) {
 
     if (arg == NULL) {
 
-        fprintf(stderr, "Client n'( %d ) : Append, [ERRORE] invalid arg\n", pid);
+        fprintf(stderr, "CLIENT %d: ERRORE Append, ERRORE invalid arg\n", pid);
 
         return -1;
     }
@@ -537,14 +545,14 @@ int gest_Append(char *arg, char *dirname) {
 
         if (rest == NULL) {
 
-            fprintf(stderr, "Client n'( %d ) : Append, [ERRORE] file sorgente non valido\n", pid);
+            fprintf(stderr, "CLIENT %d: ERRORE Append, ERRORE invalid source file\n", pid);
 
             return -1;
         }
 
-        if (openFile(token, O_NULL, dirname) == -1) {
+        if (openFile(token, O_NULL, dirname) == -1) {                             // per ciascun file:
 
-            fprintf(stderr, "Client n'( %d ) : Append openFile %s, [ERRORE] %s\n", pid, token, strerror(errno));
+            fprintf(stderr, "CLIENT %d: ERRORE Append openFile %s, ERRORE %s\n", pid, token, strerror(errno));
 
             return -1;
         }
@@ -555,19 +563,20 @@ int gest_Append(char *arg, char *dirname) {
 
         if ((file = fopen(rest,"r")) == NULL) {
 
-            fprintf(stderr, "Client n'( %d ) : Append fopen %s, [ERRORE] %s\n", pid, rest, strerror(errno));
+            fprintf(stderr, "CLIENT %d: ERRORE Append fopen %s, ERRORE %s\n", pid, rest, strerror(errno));
 
             return -1;
         }
 
-        fseek(file, 0L, SEEK_END);        // Scopriamo la dimensione del file
+
+        fseek(file, 0L, SEEK_END);                                                // Scopriamo la dimensione del file
         file_size = ftell(file);
         rewind(file);
 
         file_out = (void *)malloc(file_size);
         if (file_out == NULL) {
 
-            fprintf(stderr, "Client n'( %d ) : Append malloc fallita\n", pid);
+            fprintf(stderr, "CLIENT %d: ERRORE Append malloc fallita\n", pid);
             fclose(file);
 
             return -1;
@@ -579,7 +588,7 @@ int gest_Append(char *arg, char *dirname) {
                 fclose(file);
                 free(file_out);
                 errno = EIO;
-                fprintf(stderr, "Client n'( %d ) : Append fread %s, [ERRORE] %s\n", pid, rest, strerror(errno));
+                fprintf(stderr, "CLIENT %d: ERRORE Append fread %s, ERRORE %s\n", pid, rest, strerror(errno));
 
                 return -1;
             }
@@ -588,7 +597,7 @@ int gest_Append(char *arg, char *dirname) {
 
         if (appendToFile(token, file_out, file_size, dirname) == -1) {
 
-            fprintf(stderr, "Client n'( %d ) : Append appendToFile %s %lu bytes, [ERRORE] %s\n", pid, token, file_size, strerror(errno));
+            fprintf(stderr, "CLIENT %d: ERRORE Append appendToFile %s %lu bytes, ERRORE %s\n", pid, token, file_size, strerror(errno));
             free(file_out);
 
             return -1;
@@ -598,12 +607,12 @@ int gest_Append(char *arg, char *dirname) {
 
         if (closeFile(token) == -1) {
 
-            fprintf(stderr, "Client n'( %d ) : Append closeFile %s, [ERRORE] %s\n", pid, token, strerror(errno));
+            fprintf(stderr, "CLIENT %d: ERRORE Append closeFile %s, ERRORE %s\n", pid, token, strerror(errno));
 
             return -1;
         }
 
-        if (p) printf("Client n'( %d ) : Append al file %s %lu bytes, [SUCCESSO]\n", pid, token, file_size);
+        if (p) printf("CLIENT %d: Append al file %s %lu bytes, SUCCESSO\n", pid, token, file_size);
 
     } else return -1;
 
@@ -620,9 +629,9 @@ int gest_readList(char *arg, char *dirname) {
 
     while (token = strtok_r(rest, ",", &rest)) {
 
-        if (openFile(token, O_NULL, NULL) == -1) {
+        if (openFile(token, O_NULL, NULL) == -1) {                              // per ciascun file:
 
-            fprintf(stderr, "Client n'( %d ) : readList openFile %s, [ERRORE] %s\n", pid, token, strerror(errno));
+            fprintf(stderr, "CLIENT %d: ERRORE readList openFile %s, ERRORE %s\n", pid, token, strerror(errno));
 
             return -1;
         }
@@ -631,24 +640,30 @@ int gest_readList(char *arg, char *dirname) {
         size_t size = 0;
         if (readFile(token, &buf, &size) == -1) {
 
-            fprintf(stderr, "Client n'( %d ) : readList readFile %s, [ERRORE] %s\n", pid, token, strerror(errno));
+            fprintf(stderr, "CLIENT %d: ERRORE readList readFile %s, ERRORE %s\n", pid, token, strerror(errno));
 
             return -1;
         }
 
-        if (dirname != NULL && dirname[0] != '\0') {      // controllo se dirname è una directory
+        if (dirname != NULL && dirname[0] != '\0') {                            // controllo se dirname è una directory
             struct stat statbuf;
             if(stat(dirname, &statbuf) == 0) {
+
                 if (S_ISDIR(statbuf.st_mode)) {
+
                     if (createWriteInDir(token, buf, size, dirname) != 0) {
 
                         free(buf);
 
                         return -1;
                     }
-                } else fprintf(stderr, "Client n'( %d ) : readList , %s non e' una cartella\n", pid, dirname);
+                } else {
+
+                    fprintf(stderr, "CLIENT %d: ERRORE readList , %s is not a directory\n", pid, dirname);
+                }
             } else {
-                fprintf(stderr, "Client n'( %d ) : readList stat %s, [ERRORE] %s\n", pid, dirname, strerror(errno));
+
+                fprintf(stderr, "CLIENT %d: ERRORE readList stat %s, ERRORE %s\n", pid, dirname, strerror(errno));
                 dirname = NULL;
             }
         }
@@ -657,12 +672,12 @@ int gest_readList(char *arg, char *dirname) {
 
         if (closeFile(token) == -1) {
 
-            fprintf(stderr, "Client n'( %d ) : readList closeFile %s, [ERRORE] %s\n", pid, token, strerror(errno));
+            fprintf(stderr, "CLIENT %d: ERRORE readList closeFile %s, ERRORE %s\n", pid, token, strerror(errno));
 
             return -1;
         }
 
-        if (p) printf("Client n'( %d ) : readList file %s %lu bytes, [SUCCESSO]\n", pid, token, size);
+        if (p) printf("CLIENT %d: readList file %s %lu bytes, SUCCESSO\n", pid, token, size);
 
     }
 
@@ -675,16 +690,16 @@ int gest_readN(char *arg, char *dirname) {
     if (arg == NULL) return -1;
 
     long n = 0;
-    if (strlen(arg) > 2 && isNumber(&(arg[2]), &n) != 0) n = 0;          // client ha sbagliato a scrivere, metto n=0 (default)
+    if (strlen(arg) > 2 && isNumber(&(arg[2]), &n) != 0)    n = 0; // client ha sbagliato a scrivere, metto n=0 (default)
 
     if (readNFiles(n, dirname) == -1) {
 
-        fprintf(stderr, "Client n'( %d ) : readN readNFiles %ld, [ERRORE] %s\n", pid, n, strerror(errno));
+        fprintf(stderr, "CLIENT %d: ERRORE readN readNFiles %ld, ERRORE %s\n", pid, n, strerror(errno));
 
         return -1;
     }
 
-    if (p) printf("Client n'( %d ) : readN readNFiles [SUCCESSO]\n", pid);
+    if (p) printf("CLIENT %d: readN readNFiles SUCCESSO\n", pid);
 
     return 0;
 }
@@ -698,15 +713,15 @@ int gest_lockList(char *arg) {
     char *rest = arg;
 
     while (token = strtok_r(rest, ",", &rest)) {
-        // per ciacun file:
-        if (openFile(token, O_LOCK, NULL) == -1) {
 
-            fprintf(stderr, "Client n'( %d ) : lockList openFile %s, [ERRORE] %s\n", pid, token, strerror(errno));
+        if (openFile(token, O_LOCK, NULL) == -1) {                              // per ciacun file:
+
+            fprintf(stderr, "CLIENT %d: ERRORE lockList openFile %s, ERRORE %s\n", pid, token, strerror(errno));
 
             return -1;
         }
 
-        if (p) printf("Client n'( %d ) : lockList %s [SUCCESSO]\n", pid, token);
+        if (p) printf("CLIENT %d: lockList %s SUCCESSO\n", pid, token);
 
     }
 
@@ -724,19 +739,19 @@ int gest_unlockList(char *arg) {
 
         if (unlockFile(token) == -1) {
 
-            fprintf(stderr, "Client n'( %d ) : unlockList unlockFile %s, [ERRORE] %s\n", pid, token, strerror(errno));
+            fprintf(stderr, "CLIENT %d: ERRORE unlockList unlockFile %s, ERRORE %s\n", pid, token, strerror(errno));
 
             return -1;
         }
 
         if (closeFile(token) == -1) {
 
-            fprintf(stderr, "Client n'( %d ) : unlockList closeFile %s, [ERRORE] %s\n", pid, token, strerror(errno));
+            fprintf(stderr, "CLIENT %d: ERRORE unlockList closeFile %s, ERRORE %s\n", pid, token, strerror(errno));
 
             return -1;
         }
 
-        if (p) printf("Client n'( %d ) : unlockList %s [SUCCESSO]\n", pid, token);
+        if (p) printf("CLIENT %d: unlockList %s SUCCESSO\n", pid, token);
 
     }
 
@@ -753,32 +768,31 @@ int gest_removeList(char *arg) {
 
     while (token = strtok_r(rest, ",", &rest)) {
 
-        if (openFile(token, O_LOCK, NULL) == -1) {
+        if (openFile(token, O_LOCK, NULL) == -1) {                              // per ciascun file:
 
-            fprintf(stderr, "Client n'( %d ) : removeList openFile %s, [ERRORE] %s\n", pid, token, strerror(errno));
+            fprintf(stderr, "CLIENT %d: ERRORE removeList openFile %s, ERRORE %s\n", pid, token, strerror(errno));
 
             return -1;
         }
 
         if (removeFile(token) == -1) {
 
-            fprintf(stderr, "Client n'( %d ) : removeList removeFile %s, [ERRORE] %s\n", pid, token, strerror(errno));
+            fprintf(stderr, "CLIENT %d: ERRORE removeList removeFile %s, ERRORE %s\n", pid, token, strerror(errno));
 
             return -1;
         }
 
-        if (p) printf("Client n'( %d ) : removeList %s [SUCCESSO]\n", pid, token);
+        if (p) printf("CLIENT %d: removeList %s SUCCESSO\n", pid, token);
 
     }
 
     return 0;
-
 }
 
 
 static void usage(int pid) {
 
-    printf("👦 %d: usage:\n"
+    printf("CLIENT %d: usage:\n"
 	    "  -h : stampa la lista di tutte le opzioni accettate dal client\n"
 	    "  -f filename : specifica il nome del socket AF_UNIX a cui connettersi\n"
 	    "  -w dirname[,n=0] : invia al server i file nella cartella 'dirname'\n"
@@ -793,6 +807,6 @@ static void usage(int pid) {
 	    "  -l file1[,file2] : lista di nomi di file su cui acquisire la mutua esclusione\n"
 	    "  -u file1[,file2] : lista di nomi di file su cui rilasciare la mutua esclusione\n"
 	    "  -c file1[,file2] : lista di file da rimuovere dal server se presenti\n"
-	    "  -p : stampa per ogni operazione: tipo di operazione, file di riferimento, esito e bytes letti/scritti\n"
-	    ,pid);
+	    "  -p : stampa per ogni operazione: tipo di operazione, file di riferimento, esito e bytes letti/scritti\n",
+	    pid);
 }

@@ -1,24 +1,24 @@
 #!/bin/bash
 
 ./client  -f ./mysock                                                     \
--W ./Files/gif_imm.gif,./Files/gif_imm2.gif                               \
+-W ./Files/cane.jpg,./Files/mare.jpg                               \
 -D ./Espulsi                                                              \
 -p                                                                        \
 &
 
 ./client -f ./mysock                                                      \
--W ./OtherFiles/SubDir/LoremIpsum.txt                                     \
+-W ./OtherFiles/SubDir/juve.txt                                     \
 -D ./Espulsi                                                              \
--a ./OtherFiles/SubDir/LoremIpsum.txt,./OtherFiles/SubDir/LoremIpsum.txt  \
+-a ./OtherFiles/SubDir/juve.txt,./OtherFiles/SubDir/juve.txt  \
 -A ./Espulsi                                                              \
 -p                                                                        \
-& 
+&
 
 
 ./client  -f ./mysock                                                     \
--W ./OtherFiles/SubDir/pisa.jpg,./OtherFiles/SubDir/pianeti.jpg           \
+-W ./OtherFiles/SubDir/spazio.jpg,./OtherFiles/SubDir/gatto.jpg           \
 -D ./Espulsi                                                              \
--p 
+-p
 
 
 if [ -e server.PID ]; then

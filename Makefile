@@ -1,6 +1,6 @@
 CC		=  gcc
 CFLAGS  = -w
-#CFLAGS  = -Wall -pedantic
+FLAGS			= -std=c99 -Wall
 
 #default
 all: server client
@@ -9,9 +9,9 @@ all: server client
 clean:
 	rm -f server client *.o *.a Letti/* Espulsi/* LettiFinal/*
 
-##########
-# SERVER #
-##########
+
+# ------------------------------------------------------------------------------------------------------------------ SERVER ------------------------------------------------------------------------------------------------------------------ #
+
 server: server.o coda.o fun_descrit.o coda_storage.o config.o signal_handler.o int_con_lock.o
 	$(CC) -pthread server.o coda.o fun_descrit.o coda_storage.o config.o signal_handler.o int_con_lock.o -o server $(FLAGS)
 
@@ -36,11 +36,9 @@ config.o: ./src/server/config.c ./includes/config.h ./includes/def_tipodato.h
 signal_handler.o: ./src/server/signal_handler.c ./includes/signal_handler.h ./includes/config.h
 	$(CC) $(CFLAGS) -c ./src/server/signal_handler.c $(FLAGS)
 
-# end SERVER
 
-##########
-# CLIENT #
-##########
+# ------------------------------------------------------------------------------------------------------------------ CLIENT ------------------------------------------------------------------------------------------------------------------ #
+
 client: client.o fun_descrit.o oper_coda.o libapi.a
 	$(CC) client.o fun_descrit.o oper_coda.o -o client -L . -lapi $(FLAGS)
 
@@ -56,24 +54,18 @@ api.o: ./src/client/api.c ./includes/api.h ./includes/def_tipodato.h
 oper_coda.o: ./src/client/oper_coda.c ./includes/oper_coda.h ./includes/def_tipodato.h ./includes/util.h ./includes/def_client.h
 	$(CC) $(CFLAGS) -c ./src/client/oper_coda.c $(FLAGS)
 
-# commentato perchè fatto anche dal server
-#fun_descrit.o: fun_descrit.c fun_descrit.h
-#	$(CC) $(CFLAGS) -c fun_descrit.c
-
-# end CLIENT
 
 
-##########
-# TEST 1 #
-##########
+
+# ------------------------------------------------------------------------------------------------------------------ TEST 1 ------------------------------------------------------------------------------------------------------------------ #
+
 test1:
 	valgrind --leak-check=full ./server -c ./Config/test1.conf & echo $$! > server.PID \
 	& bash tests/test1.sh
 
 
-##########
-# TEST 2 #
-##########
+# ------------------------------------------------------------------------------------------------------------------ TEST 2 ------------------------------------------------------------------------------------------------------------------ #
+
 test2:
 	./server -c ./Config/test2.conf & echo $$! > server.PID \
 	& bash tests/test2.sh

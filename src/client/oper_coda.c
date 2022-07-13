@@ -76,7 +76,6 @@ int ins_coda_oper(OperCoda_t *q, int opt, char *arg) {
 
     n->opt = opt;
     strncpy(n->arg, arg, PATH_MAX);
-    printf("ins_coda_oper arg:%s\n", n->arg);
     fflush(stdout);
     n->next = NULL;
 

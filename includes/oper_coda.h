@@ -1,5 +1,7 @@
-#ifndef OPT_QUEUE_H
-#define OPT_QUEUE_H
+#define _GNU_SOURCE
+#define PATH_MAX        4096
+#ifndef OPER_CODA_H
+#define OPER_CODA_H
 
 #include <pthread.h>
 #include <limits.h>
@@ -88,4 +90,4 @@ int setRDirname_coda_oper(OperCoda_t *q, char *dirname);
 int setADirname_coda_oper(OperCoda_t *q, char *dirname);
 
 
-#endif 
+#endif

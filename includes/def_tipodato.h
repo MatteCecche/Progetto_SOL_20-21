@@ -1,3 +1,5 @@
+#define _GNU_SOURCE
+#define PATH_MAX        4096
 #ifndef DEF_TIPODATO_H
 #define DEF_TIPODATO_H
 

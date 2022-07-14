@@ -30,7 +30,7 @@ typedef struct coda {
 //  thread (tipicamente il thread main).                            //
 // ---------------------------------------------------------------- //
 
-Coda_t *init_coda();
+Coda_t *init_coda(FILE *l, pthread_mutex_t ml);
 
 // ------------------------------------------------------------------ //
 // Cancella una coda allocata con init_coda. Deve essere chiamata da  //

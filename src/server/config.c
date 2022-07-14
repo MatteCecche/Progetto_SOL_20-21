@@ -61,14 +61,18 @@ void read_config_file(char* config_filename) {
       	if (strstr(buf, "LimitNumFiles ")) {
 
 						config.limit_num_files = read_int_from_config_line(buf);
-     	}
+     		}
       	if (strstr(buf, "StorageCapacity ")) {
 
 						config.storage_capacity = read_int_from_config_line(buf);
       	}
-		if (strstr(buf, "PrintLevel ")) {
+				if (strstr(buf, "PrintLevel ")) {
 
 						config.v = read_int_from_config_line(buf);
+      	}
+				if (strstr(buf, "PathFilelog ")) {
+
+						read_str_from_config_line(buf, config.path_filelog);
       	}
 
 	}

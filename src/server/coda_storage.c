@@ -14,6 +14,9 @@
 
 extern struct config_struct config;
 extern server_status status;
+FILE *fl3;
+pthread_mutex_t mlog3;
+
 
 
 
@@ -96,8 +99,10 @@ int send_to_client_and_free(int fd, int num_files, NodoStorage_t *poppedH);
 
 /* ------------------- interfaccia della coda ------------------ */
 
-CodaStorage_t *init_coda_stor(int limit_num_files, unsigned long storage_capacity) {
+CodaStorage_t *init_coda_stor(int limit_num_files, unsigned long storage_capacity, FILE *l, pthread_mutex_t ml) {
 
+    fl3 = l;
+    mlog3 = ml;
     CodaStorage_t *q = allocQueue();
 
     if (!q) return NULL;
@@ -115,7 +120,10 @@ CodaStorage_t *init_coda_stor(int limit_num_files, unsigned long storage_capacit
 
     if (pthread_mutex_init(&q->qlock, NULL) != 0) {
 
-      perror("SERVER : ERRORE mutex init");
+      perror("\e[0;36mSERVER : \e[0;31mERRORE mutex init\e[0m");
+      LOCK(&mlog3);
+      fprintf(fl3, "SERVER : ERRORE mutex init");
+      UNLOCK(&mlog3);
 
       return NULL;
     }
@@ -176,7 +184,7 @@ void queue_s_deleteNodes (NodoStorage_t *head) {
 
 }
 
-int ins_coda_stor(CodaStorage_t *q, char *pathname, bool locked, int fd) {
+int ins_coda_stor(CodaStorage_t *q, char *pathname, bool locked, int fd, FILE *l, pthread_mutex_t ml) {
 
     NodoStorage_t *poppedNode = NULL;
 
@@ -185,7 +193,12 @@ int ins_coda_stor(CodaStorage_t *q, char *pathname, bool locked, int fd) {
         return EINVAL;
     }
 
-    if (config.v > 2) printf("SERVER : ins_coda_stor, fd: %d, pathname: %s\n", fd, pathname);
+    if (config.v > 2){
+      printf("\e[0;36mSERVER : ins_coda_stor, fd: %d, pathname: %s\n\e[0m", fd, pathname);
+      LOCK(&mlog3);
+      fprintf(fl3, "SERVER : ins_coda_stor, fd: %d, pathname: %s\n", fd, pathname);
+      UNLOCK(&mlog3);
+    }
     fflush(stdout);
 
     NodoStorage_t *n = allocStorageNode();
@@ -196,7 +209,10 @@ int ins_coda_stor(CodaStorage_t *q, char *pathname, bool locked, int fd) {
 
     if (pthread_cond_init(&n->filecond, NULL) != 0) {
 
-      perror("SERVER : ERRORE mutex cond");
+      perror("\e[0;36mSERVER : \e[0;31mERRORE mutex cond\e[0m");
+      LOCK(&mlog3);
+      fprintf(fl3, "SERVER : ERRORE mutex cond");
+      UNLOCK(&mlog3);
       return EAGAIN;
     }
 
@@ -205,17 +221,24 @@ int ins_coda_stor(CodaStorage_t *q, char *pathname, bool locked, int fd) {
     n->fd_locker = (locked) ? fd : -1;
     n->locker_can_write = locked;
 
-    n->opener_q = init_coda();
+    n->opener_q = init_coda(l, ml);
     if (!n->opener_q){
 
-        fprintf(stderr, "SERVER fd : %d, initQueue fallita\n", fd);
+        fprintf(stderr, "\e[0;36mSERVER fd : %d, \e[0;31minitQueue fallita\n\e[0m", fd);
+        LOCK(&mlog3);
+        fprintf(fl3, "SERVER fd : %d, initQueue fallita\n", fd);
+        UNLOCK(&mlog3);
         if (&n->filecond)  pthread_cond_destroy(&n->filecond);
         freeStorageNode(n);
 
         return EAGAIN;
     }
     if (ins_coda(n->opener_q, fd) != 0) {
-        fprintf(stderr, "SERVER fd : %d, push opener_q fallita\n", fd);
+
+        fprintf(stderr, "\e[0;36mSERVER fd : %d, \e[0;31mpush opener_q fallita\n\e[0m", fd);
+        LOCK(&mlog3);
+        fprintf(fl3, "SERVER fd : %d, push opener_q fallita\n", fd);
+        UNLOCK(&mlog3);
         if (&n->filecond)  pthread_cond_destroy(&n->filecond);
         freeStorageNode(n);
 
@@ -248,7 +271,12 @@ int ins_coda_stor(CodaStorage_t *q, char *pathname, bool locked, int fd) {
 
     if (q->cur_numfiles == q->limit_num_files) {
 
-        if (config.v > 2) printf("SERVER : Limite di files raggiunto\n");
+        if (config.v > 2){
+          printf("\e[0;36mSERVER : Limite di files raggiunto\n\e[0m");
+          LOCK(&mlog3);
+          fprintf(fl3, "SERVER : Limite di files raggiunto\n");
+          UNLOCK(&mlog3);
+        }
         if((poppedNode = queue_s_pop(q)) == NULL) {
 
             UnlockQueue(q);
@@ -284,7 +312,10 @@ int ins_coda_stor(CodaStorage_t *q, char *pathname, bool locked, int fd) {
     if (writen(fd, &res, sizeof(res)) != sizeof(res)) {
 
         close(fd);
-        fprintf(stderr, "SERVER : writen res queue_s_openFile errore\n");
+        fprintf(stderr, "\e[0;36mSERVER : \e[0;31mwriten res queue_s_openFile errore\n\e[0m");
+        LOCK(&mlog3);
+        fprintf(fl3, "SERVER : writen res queue_s_openFile errore\n");
+        UNLOCK(&mlog3);
         fflush(stdout);
 
         return -1;
@@ -293,7 +324,7 @@ int ins_coda_stor(CodaStorage_t *q, char *pathname, bool locked, int fd) {
     return 0;
 }
 
-int updateOpeners_coda_stor(CodaStorage_t *q, char *pathname, bool locked, int fd) {
+int updateOpeners_coda_stor(CodaStorage_t *q, char *pathname, bool locked, int fd, FILE *l, pthread_mutex_t ml) {
 
     if ((q == NULL) || (pathname == NULL)) {
 
@@ -312,7 +343,12 @@ int updateOpeners_coda_stor(CodaStorage_t *q, char *pathname, bool locked, int f
 
     while (item->locked && item->fd_locker != fd && status != CLOSED) {
 
-        if (config.v > 2) printf("SERVER : queue_s_openFile, fd: %d, file: %s locked, aspetto...\n", fd, pathname);
+        if (config.v > 2){
+          printf("\e[0;36mSERVER : queue_s_openFile, fd: %d, file: %s locked, aspetto...\n\e[0m", fd, pathname);
+          LOCK(&mlog3);
+          fprintf(fl3, "SERVER : queue_s_openFile, fd: %d, file: %s locked, aspetto...\n", fd, pathname);
+          UNLOCK(&mlog3);
+        }
         UnlockQueueAndWait(q, item);
     }
     if (status == CLOSED) {
@@ -338,17 +374,23 @@ int updateOpeners_coda_stor(CodaStorage_t *q, char *pathname, bool locked, int f
 
     if(item->opener_q == NULL) {
 
-        item->opener_q = init_coda();
+        item->opener_q = init_coda(l, ml);
         if (!q){
 
-            fprintf(stderr, "SERVER fd : %d, initQueue fallita\n", fd);
+            fprintf(stderr, "\e[0;36mSERVER fd : %d, \e[0;31minitQueue fallita\n\e[0m", fd);
+            LOCK(&mlog3);
+            fprintf(fl3, "SERVER fd : %d, initQueue fallita\n", fd);
+            UNLOCK(&mlog3);
             UnlockQueue(q);
 
             return EAGAIN;
         }
         if (ins_coda(item->opener_q, fd) != 0) {
 
-            fprintf(stderr, "SERVER fd : %d, push opener_q fallita\n", fd);
+            fprintf(stderr, "\e[0;36mSERVER fd : %d, \e[0;31mpush opener_q fallita\n\e[0m", fd);
+            LOCK(&mlog3);
+            fprintf(fl3, "SERVER fd : %d, push opener_q fallita\n", fd);
+            UNLOCK(&mlog3);
             UnlockQueue(q);
 
             return EAGAIN;
@@ -357,7 +399,10 @@ int updateOpeners_coda_stor(CodaStorage_t *q, char *pathname, bool locked, int f
 
         if(ins_coda(item->opener_q, fd) != 0) {
 
-            fprintf(stderr, "SERVER fd : %d, push opener_q fallita\n", fd);
+            fprintf(stderr, "\e[0;36mSERVER fd : %d, \e[0;31mpush opener_q fallita\n\e[0m", fd);
+            LOCK(&mlog3);
+            fprintf(fl3, "SERVER fd : %d, push opener_q fallita\n", fd);
+            UNLOCK(&mlog3);
             UnlockQueue(q);
 
             return EAGAIN;
@@ -373,7 +418,10 @@ int updateOpeners_coda_stor(CodaStorage_t *q, char *pathname, bool locked, int f
 
     if (writen(fd, &res, sizeof(res)) != sizeof(res)) {
         close(fd);
-        fprintf(stderr, "SERVER : writen res queue_s_openFile errore\n");
+        fprintf(stderr, "\e[0;36mSERVER : \e[0;31mwriten res queue_s_openFile errore\n\e[0m");
+        LOCK(&mlog3);
+        fprintf(fl3, "SERVER : writen res queue_s_openFile errore\n");
+        UNLOCK(&mlog3);
 
         return -1;
     }
@@ -428,7 +476,10 @@ int readFile_coda_stor(CodaStorage_t *q, char *pathname, int fd) {
 
         close(fd);
 
-        fprintf(stderr, "SERVER : writen res readFile_coda_stor errore\n");
+        fprintf(stderr, "\e[0;36mSERVER : \e[0;31mwriten res readFile_coda_stor errore\n\e[0m");
+        LOCK(&mlog3);
+        fprintf(fl3, "SERVER : writen res readFile_coda_stor errore\n");
+        UNLOCK(&mlog3);
 
         UnlockQueue(q);
 
@@ -438,7 +489,12 @@ int readFile_coda_stor(CodaStorage_t *q, char *pathname, int fd) {
     if (writen(fd, item->data, res.datalen) != res.datalen) {
 
         close(fd);
-        if (config.v > 1) printf("SERVER : writen data readFile_coda_stor errore\n");
+        if (config.v > 1){
+          printf("\e[0;36mSERVER : \e[0;31mwriten data readFile_coda_stor errore\n\e[0m");
+          LOCK(&mlog3);
+          fprintf(fl3, "SERVER : writen data readFile_coda_stor errore\n");
+          UNLOCK(&mlog3);
+        }
         fflush(stdout);
 
         UnlockQueue(q);
@@ -446,7 +502,12 @@ int readFile_coda_stor(CodaStorage_t *q, char *pathname, int fd) {
         return -1;
     }
 
-    if (config.v > 1) printf("SERVER : Letto (ed inviato) file %s, di lunghezza %d\n", item->pathname, item->len);
+    if (config.v > 1){
+      printf("\e[0;36mSERVER : Letto (ed inviato) file %s, di lunghezza %d\n\e[0m", item->pathname, item->len);
+      LOCK(&mlog3);
+      fprintf(fl3, "SERVER : Letto (ed inviato) file %s, di lunghezza %d\n", item->pathname, item->len);
+      UNLOCK(&mlog3);
+    }
     fflush(stdout);
 
     UnlockQueue(q);
@@ -470,12 +531,20 @@ int readNFiles_coda_stor(CodaStorage_t *q, char *pathname, int fd, int n) {
     if (q->cur_numfiles < n || n <= 0) res.datalen = q->cur_numfiles;
     else res.datalen = n;
 
-    if (config.v > 1) printf("SERVER : Numero di files che verranno inviati: %d\n", res.datalen);
+    if (config.v > 1){
+      printf("\e[0;36mSERVER : Numero di files che verranno inviati: %d\n\e[0m", res.datalen);
+      LOCK(&mlog3);
+      fprintf(fl3, "SERVER : Numero di files che verranno inviati: %d\n", res.datalen);
+      UNLOCK(&mlog3);
+    }
 
     if (writen(fd, &res, sizeof(res)) != sizeof(res)) {           // invio messaggio al client
 
         close(fd);
-        fprintf(stderr, "SERVER : writen res readFile_coda_stor errore\n");
+        fprintf(stderr, "\e[0;36mSERVER : \e[0;31mwriten res readFile_coda_stor errore\n\e[0m");
+        LOCK(&mlog3);
+        fprintf(fl3, "SERVER : writen res readFile_coda_stor errore\n");
+        UNLOCK(&mlog3);
         fflush(stderr);
 
         UnlockQueue(q);
@@ -493,7 +562,10 @@ int readNFiles_coda_stor(CodaStorage_t *q, char *pathname, int fd, int n) {
 
         if (writen(fd, &res, sizeof(res)) != sizeof(res)) {                   //invio messaggio al client
             close(fd);
-            fprintf(stderr, "SERVER : writen res readFile_coda_stor errore\n");
+            fprintf(stderr, "\e[0;36mSERVER : \e[0;31mwriten res readFile_coda_stor errore\n\e[0m");
+            LOCK(&mlog3);
+            fprintf(fl3, "SERVER : writen res readFile_coda_stor errore\n");
+            UNLOCK(&mlog3);
             fflush(stderr);
 
             UnlockQueue(q);
@@ -504,7 +576,10 @@ int readNFiles_coda_stor(CodaStorage_t *q, char *pathname, int fd, int n) {
         if (writen(fd, temp->data, res.datalen) != res.datalen) {
 
             close(fd);
-            fprintf(stderr, "SERVER : writen data readFile_coda_stor errore\n");
+            fprintf(stderr, "\e[0;36mSERVER : \e[0;31mwriten data readFile_coda_stor errore\n\e[0m");
+            LOCK(&mlog3);
+            fprintf(fl3, "SERVER : writen data readFile_coda_stor errore\n");
+            UNLOCK(&mlog3);
             fflush(stderr);
 
             UnlockQueue(q);
@@ -513,7 +588,12 @@ int readNFiles_coda_stor(CodaStorage_t *q, char *pathname, int fd, int n) {
         }
 
 
-        if (config.v > 1) printf("SERVER : Letto (ed inviato) file %s, di lunghezza %d\n", temp->pathname, temp->len);
+        if (config.v > 1){
+          printf("\e[0;36mSERVER : Letto (ed inviato) file %s, di lunghezza %d\n\e[0m", temp->pathname, temp->len);
+          LOCK(&mlog3);
+          fprintf(fl3, "SERVER : Letto (ed inviato) file %s, di lunghezza %d\n", temp->pathname, temp->len);
+          UNLOCK(&mlog3);
+        }
         fflush(stdout);
 
         temp = temp->next;
@@ -580,7 +660,10 @@ int writeFile_coda_stor(CodaStorage_t *q, char *pathname, int fd, void *buf, int
 
         UnlockQueue(q);
 
-        fprintf(stderr, "SERVER fd : %d, queue_s_writeToFile malloc fallita\n", fd);
+        fprintf(stderr, "\e[0;36mSERVER fd : %d, \e[0;31mqueue_s_writeToFile malloc fallita\n\e[0m", fd);
+        LOCK(&mlog3);
+        fprintf(fl3, "SERVER fd : %d, queue_s_writeToFile malloc fallita\n", fd);
+        UNLOCK(&mlog3);
         return ENOMEM;
     }
 
@@ -589,7 +672,12 @@ int writeFile_coda_stor(CodaStorage_t *q, char *pathname, int fd, void *buf, int
     item->len = buf_len;
     item->data = tmp;
 
-    if (config.v > 1) printf("SERVER : Scritto il file %s, per una lunghezza di %d\n", item->pathname, item->len);
+    if (config.v > 1){
+      printf("\e[0;36mSERVER : Scritto il file %s, per una lunghezza di %d\n\e[0m", item->pathname, item->len);
+      LOCK(&mlog3);
+      fprintf(fl3, "SERVER : Scritto il file %s, per una lunghezza di %d\n", item->pathname, item->len);
+      UNLOCK(&mlog3);
+    }
     fflush(stdout);
 
     q->cur_usedstorage += item->len;
@@ -618,7 +706,10 @@ int writeFile_coda_stor(CodaStorage_t *q, char *pathname, int fd, void *buf, int
     if (writen(fd, &res, sizeof(res)) != sizeof(res)) {
 
         close(fd);
-        fprintf(stderr, "SERVER : writen res writeFile_coda_stor errore\n");
+        fprintf(stderr, "\e[0;36mSERVER : \e[0;31mwriten res writeFile_coda_stor errore\n\e[0m");
+        LOCK(&mlog3);
+        fprintf(fl3, "SERVER : writen res writeFile_coda_stor errore\n");
+        UNLOCK(&mlog3);
         fflush(stderr);
 
         return -1;
@@ -647,7 +738,12 @@ int appendToFile_coda_stor(CodaStorage_t *q, char *pathname, int fd, void *buf, 
 
     if (trova_coda(item->opener_q, fd) == NULL) {
 
-        if (config.v > 2) printf("SERVER : item->opener_q == NULL ? %d\n", (item->opener_q == NULL));
+        if (config.v > 2){
+          printf("\e[0;36mSERVER : \e[0;31mitem->opener_q == NULL ? %d\n\e[0m", (item->opener_q == NULL));
+          LOCK(&mlog3);
+          fprintf(fl3, "SERVER : item->opener_q == NULL ? %d\n", (item->opener_q == NULL));
+          UNLOCK(&mlog3);
+        }
         fflush(stdout);
         UnlockQueue(q);
 
@@ -670,7 +766,10 @@ int appendToFile_coda_stor(CodaStorage_t *q, char *pathname, int fd, void *buf, 
 
         UnlockQueue(q);
 
-        fprintf(stderr, "SERVER fd : %d, appendToFile_coda_stor realloc fallita\n", fd);
+        fprintf(stderr, "\e[0;36mSERVER fd : %d, \e[0;31mappendToFile_coda_stor realloc fallita\n\e[0m", fd);
+        LOCK(&mlog3);
+        fprintf(fl3, "SERVER fd : %d, appendToFile_coda_stor realloc fallita\n", fd);
+        UNLOCK(&mlog3);
 
         return ENOMEM;
     }
@@ -680,7 +779,12 @@ int appendToFile_coda_stor(CodaStorage_t *q, char *pathname, int fd, void *buf, 
     item->data = tmp;
     item->len += buf_len;
 
-    if (config.v > 1) printf("SERVER : Append sul file %s, lunghezza attuale di %d\n", item->pathname, item->len);
+    if (config.v > 1){
+      printf("\e[0;36mSERVER : Append sul file %s, lunghezza attuale di %d\n\e[0m", item->pathname, item->len);
+      LOCK(&mlog3);
+      fprintf(fl3, "SERVER : Append sul file %s, lunghezza attuale di %d\n", item->pathname, item->len);
+      UNLOCK(&mlog3);
+    }
     fflush(stdout);
 
     q->cur_usedstorage += buf_len;
@@ -707,7 +811,10 @@ int appendToFile_coda_stor(CodaStorage_t *q, char *pathname, int fd, void *buf, 
     if (writen(fd, &res, sizeof(res)) != sizeof(res)) {
 
         close(fd);
-        fprintf(stderr, "SERVER : writen res appendToFile_coda_stor errore\n");
+        fprintf(stderr, "\e[0;36mSERVER : \e[0;31mwriten res appendToFile_coda_stor errore\n\e[0m");
+        LOCK(&mlog3);
+        fprintf(fl3, "SERVER : writen res appendToFile_coda_stor errore\n");
+        UNLOCK(&mlog3);
         fflush(stderr);
 
         return -1;
@@ -735,7 +842,12 @@ int lockFile_coda_stor(CodaStorage_t *q, char *pathname, int fd) {
 
     while (item->locked && item->fd_locker != fd && status != CLOSED) {
 
-        if (config.v > 2) printf("SERVER : lockFile_coda_stor, fd: %d, file: %s locked, aspetto...\n", fd, pathname);
+        if (config.v > 2){
+          printf("\e[0;36mSERVER : lockFile_coda_stor, fd: %d, file: %s locked, aspetto...\n\e[0m", fd, pathname);
+          LOCK(&mlog3);
+          fprintf(fl3, "SERVER : lockFile_coda_stor, fd: %d, file: %s locked, aspetto...\n", fd, pathname);
+          UNLOCK(&mlog3);
+        }
         UnlockQueueAndWait(q, item);
     }
     if (status == CLOSED) {
@@ -764,7 +876,10 @@ int lockFile_coda_stor(CodaStorage_t *q, char *pathname, int fd) {
     if (writen(fd, &res, sizeof(res)) != sizeof(res)) {
 
         close(fd);
-        fprintf(stderr, "SERVER : writen res lockFile_coda_stor errore\n");
+        fprintf(stderr, "\e[0;36mSERVER : \e[0;31mwriten res lockFile_coda_stor errore\n\e[0m");
+        LOCK(&mlog3);
+        fprintf(fl3, "SERVER : writen res lockFile_coda_stor errore\n");
+        UNLOCK(&mlog3);
         fflush(stderr);
         return -1;
     }
@@ -818,7 +933,10 @@ int unlockFile_coda_stor(CodaStorage_t *q, char *pathname, int fd) {
     if (writen(fd, &res, sizeof(res)) != sizeof(res)) {
 
         close(fd);
-        fprintf(stderr, "SERVER : writen res writeFile_coda_stor errore\n");
+        fprintf(stderr, "\e[0;36mSERVER : \e[0;31mwriten res writeFile_coda_stor errore\n\e[0m");
+        LOCK(&mlog3);
+        fprintf(fl3, "SERVER : writen res writeFile_coda_stor errore\n");
+        UNLOCK(&mlog3);
         fflush(stderr);
 
         return -1;
@@ -853,7 +971,12 @@ int closeFile_coda_stor(CodaStorage_t *q, char *pathname, int fd) {
         return EPERM;
     } else if (esito == 1) {                                                    //è andata bene la delete (fd era l'ultimo opener)
 
-        if (config.v > 2) printf("SERVER : deleteNode OK (ed fd era l'ultimo opener)\n");
+        if (config.v > 2){
+          printf("\e[0;36mSERVER : deleteNode OK (ed fd era l'ultimo opener)\n\e[0m");
+          LOCK(&mlog3);
+          fprintf(fl3, "SERVER : deleteNode OK (ed fd era l'ultimo opener)\n");
+          UNLOCK(&mlog3);
+        }
         item->opener_q = NULL;
     }
 
@@ -874,7 +997,10 @@ int closeFile_coda_stor(CodaStorage_t *q, char *pathname, int fd) {
     if (writen(fd, &res, sizeof(res)) != sizeof(res)) {
 
         close(fd);
-        fprintf(stderr, "SERVER : writen res closeFile_coda_stor errore\n");
+        fprintf(stderr, "\e[0;36mSERVER : \e[0;31mwriten res closeFile_coda_stor errore\n\e[0m");
+        LOCK(&mlog3);
+        fprintf(fl3, "SERVER : writen res closeFile_coda_stor errore\n");
+        UNLOCK(&mlog3);
         fflush(stderr);
 
         return -1;
@@ -998,7 +1124,10 @@ int removeFile_coda_stor(CodaStorage_t *q, char *pathname, int fd) {
     if (writen(fd, &res, sizeof(res)) != sizeof(res)) {
 
         close(fd);
-        fprintf(stderr, "SERVER : writen res queue_s_deleteFile errore\n");
+        fprintf(stderr, "\e[0;36mSERVER : \e[0;31mwriten res queue_s_deleteFile errore\n\e[0m");
+        LOCK(&mlog3);
+        fprintf(fl3, "SERVER : writen res queue_s_deleteFile errore\n");
+        UNLOCK(&mlog3);
         fflush(stderr);
 
         return -1;
@@ -1017,7 +1146,10 @@ void printListFiles_coda_stor(CodaStorage_t *q) {
 
     while(curr != NULL) {
 
-        printf("SERVER : %s\n", curr->pathname);
+        printf("\e[0;36mSERVER : %s\n\e[0m", curr->pathname);
+        LOCK(&mlog3);
+        fprintf(fl3, "SERVER : %s\n", curr->pathname);
+        UNLOCK(&mlog3);
         fflush(stdout);
 
         curr = curr->next;
@@ -1045,7 +1177,12 @@ NodoStorage_t* queue_s_find(CodaStorage_t *q, char *pathname) {
 
     while(found == NULL && curr != NULL) {
 
-        if (config.v > 2) printf("SERVER : queue_s_find, locked: %d, fd: %d, cwrite: %d, pathname: %s\n", curr->locked, curr->fd_locker, curr->locker_can_write, curr->pathname);
+        if (config.v > 2){
+          printf("\e[0;36mSERVER : queue_s_find, locked: %d, fd: %d, cwrite: %d, pathname: %s\n\e[0m", curr->locked, curr->fd_locker, curr->locker_can_write, curr->pathname);
+          LOCK(&mlog3);
+          fprintf(fl3, "SERVER : queue_s_find, locked: %d, fd: %d, cwrite: %d, pathname: %s\n", curr->locked, curr->fd_locker, curr->locker_can_write, curr->pathname);
+          UNLOCK(&mlog3);
+        }
         fflush(stdout);
 
         if (strcmp(curr->pathname, pathname) == 0) {
@@ -1155,14 +1292,22 @@ int send_to_client_and_free(int fd, int num_files, NodoStorage_t *poppedH) {
     if (writen(fd, &res, sizeof(res)) != sizeof(res)) {                           // invio messaggio al client (quanti files riceverà)
 
         close(fd);
-        fprintf(stderr, "SERVER : writen res send_to_client_and_free errore\n");
+        fprintf(stderr, "\e[0;36mSERVER : \e[0;31mwriten res send_to_client_and_free errore\n\e[0m");
+        LOCK(&mlog3);
+        fprintf(fl3, "SERVER : writen res send_to_client_and_free errore\n");
+        UNLOCK(&mlog3);
         fflush(stderr);
         queue_s_deleteNodes(poppedH);
 
         return -1;
     }
 
-    if (config.v > 1) printf("SERVER : Numero di files in espulsione: %d\n", num_files);
+    if (config.v > 1){
+      printf("\e[0;36mSERVER : Numero di files in espulsione: %d\n\e[0m", num_files);
+      LOCK(&mlog3);
+      fprintf(fl3, "SERVER : Numero di files in espulsione: %d\n", num_files);
+      UNLOCK(&mlog3);
+    }
 
     while(poppedH != NULL) {
 
@@ -1170,13 +1315,21 @@ int send_to_client_and_free(int fd, int num_files, NodoStorage_t *poppedH) {
         res.datalen = temp->len;
         strcpy(res.pathname, temp->pathname);
 
-        if (config.v > 1) printf("SERVER : Espulso file %s, di lunghezza %d\n", temp->pathname, temp->len);
+        if (config.v > 1){
+          printf("\e[0;36mSERVER : Espulso file %s, di lunghezza %d\n\e[0m", temp->pathname, temp->len);
+          LOCK(&mlog3);
+          fprintf(fl3, "SERVER : Espulso file %s, di lunghezza %d\n", temp->pathname, temp->len);
+          UNLOCK(&mlog3);
+        }
         fflush(stdout);
 
         if (writen(fd, &res, sizeof(res)) != sizeof(res)) {
 
             close(fd);
-            fprintf(stderr, "SERVER : writen res send_to_client_and_free errore\n");
+            fprintf(stderr, "\e[0;36mSERVER : \e[0;31mwriten res send_to_client_and_free errore\n\e[0m");
+            LOCK(&mlog3);
+            fprintf(fl3, "SERVER : writen res send_to_client_and_free errore\n");
+            UNLOCK(&mlog3);
             fflush(stderr);
             queue_s_deleteNodes(poppedH);
 
@@ -1188,7 +1341,10 @@ int send_to_client_and_free(int fd, int num_files, NodoStorage_t *poppedH) {
             if (writen(fd, temp->data, res.datalen) != res.datalen) {
 
                 close(fd);
-                fprintf(stderr, "SERVER : writen data send_to_client_and_free errore\n");
+                fprintf(stderr, "\e[0;36mSERVER : \e[0;31mwriten data send_to_client_and_free errore\n\e[0m");
+                LOCK(&mlog3);
+                fprintf(fl3, "SERVER : writen data send_to_client_and_free errore\n");
+                UNLOCK(&mlog3);
                 fflush(stderr);
                 queue_s_deleteNodes(poppedH);
 

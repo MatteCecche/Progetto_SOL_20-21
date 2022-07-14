@@ -7,6 +7,6 @@
 // Crea (in modalità detached) il thread che gestisce i segnali (e gli passa signalArg) //
 // ------------------------------------------------------------------------------------ //
 
-pthread_t createSignalHandlerThread(signalThreadArgs_t *signalArg);
+pthread_t createSignalHandlerThread(signalThreadArgs_t *signalArg, FILE *l, pthread_mutex_t ml);
 
 #endif

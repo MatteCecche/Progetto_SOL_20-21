@@ -14,8 +14,11 @@
 #include <pthread.h>
 #include "../../includes/signal_handler.h"
 #include "../../includes/config.h"
+#include "../../includes/util.h"
 
 extern struct config_struct config;
+FILE *fl2;
+pthread_mutex_t mlog2;
 
 // -------------------------------------------------------------------------------------------------------------------------------------------------- //
 // Thread che gestisce i segnali (cambia lo stato del server, inoltre tramite pipe (chiudendola) sveglia il server nel caso fosse bloccato su select) //
@@ -23,9 +26,13 @@ extern struct config_struct config;
 
 void *SignalHandler(void *arg) {
 
+
     signalThreadArgs_t *puntatore = (signalThreadArgs_t*) arg;
 
-    fprintf(stdout," #%d: ##### signal thread partito #####\n",getpid());
+    fprintf(stdout,"\e[0;36m%d : ########## signal thread partito ##########\n\e[0m",getpid());
+    LOCK(&mlog2);
+    fprintf(fl2, "%d : ########## signal thread partito ##########\n",getpid());
+    UNLOCK(&mlog2);
 
     server_status * status = puntatore->status;
     int pfd_w = puntatore->pfd_w;
@@ -44,16 +51,31 @@ void *SignalHandler(void *arg) {
 
         switch (sig) {
             case SIGINT:
-                if (config.v > 1) printf("SERVER : SignalHandler: Ricevuto SigInt\n");
+                if (config.v > 1){
+                  printf("\e[0;36mSERVER : SignalHandler: Ricevuto SigInt\n\e[0m");
+                  LOCK(&mlog2);
+                  fprintf(fl2, "SERVER : SignalHandler: Ricevuto SigInt\n");
+                  UNLOCK(&mlog2);
+                }
                 fflush(stdout);
                 *status = CLOSED;
                 break;
             case SIGQUIT:
-                if (config.v > 1) printf("SERVER : SignalHandler: Ricevuto SigQuit\n");
+                if (config.v > 1){
+                  printf("\e[0;36mSERVER : SignalHandler: Ricevuto SigQuit\n\e[0m");
+                  LOCK(&mlog2);
+                  fprintf(fl2, "SERVER : SignalHandler: Ricevuto SigQuit\n");
+                  UNLOCK(&mlog2);
+                }
                 *status = CLOSED;
                 break;
             case SIGHUP:
-                if (config.v > 1) printf("SERVER : SignalHandler: Ricevuto SigHup\n");
+                if (config.v > 1){
+                  printf("\e[0;36mSERVER : SignalHandler: Ricevuto SigHup\n\e[0m");
+                  LOCK(&mlog2);
+                  fprintf(fl2, "SERVER : SignalHandler: Ricevuto SigHup\n");
+                  UNLOCK(&mlog2);
+                }
                 *status = CLOSING;
                 break;
             default:
@@ -68,14 +90,19 @@ void *SignalHandler(void *arg) {
 }
 
 
-pthread_t createSignalHandlerThread(signalThreadArgs_t *signalArg) {
+pthread_t createSignalHandlerThread(signalThreadArgs_t *signalArg, FILE *l, pthread_mutex_t ml) {
 
+    fl2 = l;
+    mlog2 = ml;
     sigset_t set;
 	  sigfillset(&set);
 
     if (sigprocmask(SIG_BLOCK, &set, NULL) == -1) {                             // blocco tutti i segnali prima dell'avvio del signal handler
 
-        perror("SERVER : ERRORE signal_set (SignalHandler");
+        perror("\e[0;36mSERVER : \e[0;31mERRORE signal_set (SignalHandler\e[0m");
+        LOCK(&mlog2);
+        fprintf(fl2, "SERVER : ERRORE signal_set (SignalHandler");
+        UNLOCK(&mlog2);
 
         return NULL;
     }
@@ -84,7 +111,10 @@ pthread_t createSignalHandlerThread(signalThreadArgs_t *signalArg) {
     pthread_t tid;
     if(pthread_create(&tid, NULL, SignalHandler, signalArg) != 0) {
 
-        fprintf(stderr, "SERVER : ERRORE pthread_create failed (SignalHandler)\n");
+        fprintf(stderr, "\e[0;36mSERVER : \e[0;31mERRORE pthread_create failed (SignalHandler)\n\e[0m");
+        LOCK(&mlog2);
+        fprintf(fl2, "SERVER : ERRORE pthread_create failed (SignalHandler)\n");
+        UNLOCK(&mlog2);
 
         return NULL;
     }

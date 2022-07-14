@@ -17,7 +17,7 @@ typedef struct IntConLock {
 // Deve essere chiamata da un solo thread (tipicamente il thread main).                           //
 // ---------------------------------------------------------------------------------------------- //
 
-IntConLock_t *init_intconlock();
+IntConLock_t *init_intconlock(FILE *l, pthread_mutex_t ml);
 
 // -------------------------------------------------------------------- //
 // Cancella la struttura allocata con init_IntConLock.                  //

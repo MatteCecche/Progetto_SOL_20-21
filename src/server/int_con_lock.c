@@ -3,8 +3,14 @@
 #include "../../includes/util.h"
 #include "../../includes/int_con_lock.h"
 
-IntConLock_t *init_intconlock() {
+FILE *fl5;
+pthread_mutex_t mlog5;
 
+
+IntConLock_t *init_intconlock(FILE *l, pthread_mutex_t ml) {
+
+    fl5 = l;
+    mlog5 = ml;
     IntConLock_t *iwl = malloc(sizeof(IntConLock_t));
 
     if (!iwl) return NULL;
@@ -15,7 +21,10 @@ IntConLock_t *init_intconlock() {
 
     if (pthread_mutex_init(&(iwl->tc_lock), NULL) != 0) {
 
-      perror("SERVER : ERRORE mutex init");
+      perror("\e[0;36mSERVER : \e[0;31mERRORE mutex init\e[0m");
+      LOCK(&mlog5);
+      fprintf(fl5, "SERVER : ERRORE mutex init");
+      UNLOCK(&mlog5);
 
       return NULL;
     }

@@ -18,7 +18,7 @@ ssize_t readn(int fd, void *ptr, size_t n) {
     nleft = n;
     while (nleft > 0) {
 
-        if((nread = read(fd, ptr, nleft)) < 0) {
+        if((nread = read(fd, ptr, nleft)) < 0) {      //legge da fd numero ptr bytes immagazzinandoli nel buffer puntato da nleft.
 
             if (nleft == n) return -1;                // errore
             else break;                               // torna quello letto fino ad ora
@@ -31,12 +31,13 @@ ssize_t readn(int fd, void *ptr, size_t n) {
 
 
 ssize_t writen(int fd, void *ptr, size_t n) {
+
     size_t   nleft;
     ssize_t  nwritten;
 
     nleft = n;
     while (nleft > 0) {
-        if((nwritten = write(fd, ptr, nleft)) < 0) {
+        if((nwritten = write(fd, ptr, nleft)) < 0) {   // scrive da fd numero ptr bytes immagazzinandoli nel buffer puntato da nleft.
             if (nleft == n) return -1;                 // errore
             else break;                                // torna quello scritto fino ad ora
         } else if (nwritten == 0) break;
@@ -94,5 +95,5 @@ int createWriteInDir (char *pathname, void *buf, size_t size, char *dirname) {
     }
 
     return 0;
-    
+
 }

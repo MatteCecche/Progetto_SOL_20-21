@@ -10,7 +10,8 @@
 
 extern struct config_struct config;
 
-
+FILE *fl4;
+pthread_mutex_t mlog4;
 
 
 
@@ -29,7 +30,10 @@ static inline void UnlockQueueAndSignal(Coda_t *q) { SIGNAL(&q->qcond); UNLOCK(&
 
 // --------------------------------------- interfaccia della coda -------------------------------------- //
 
-Coda_t *init_coda() {
+Coda_t *init_coda(FILE *l, pthread_mutex_t ml) {
+
+    fl4 = l;
+    mlog4 = ml;
 
     Coda_t *q = allocCoda();
 
@@ -41,14 +45,20 @@ Coda_t *init_coda() {
 
     if (pthread_mutex_init(&q->qlock, NULL) != 0) {
 
-        perror("SERVER : ERRORE mutex init");
+        perror("\e[0;36mSERVER : \e[0;31mERRORE mutex init\e[0m");
+        LOCK(&mlog4);
+        fprintf(fl4, "SERVER : ERRORE mutex init");
+        UNLOCK(&mlog4);
 
         return NULL;
     }
 
     if (pthread_cond_init(&q->qcond, NULL) != 0) {
 
-        perror("SERVER : ERRORE mutex cond");
+        perror("\e[0;36mSERVER : \e[0;31mERRORE mutex cond\e[0m");
+        LOCK(&mlog4);
+        fprintf(fl4, "SERVER : ERRORE mutex cond");
+        UNLOCK(&mlog4);
 
         if (&q->qlock) pthread_mutex_destroy(&q->qlock);
 
@@ -143,10 +153,20 @@ Nodo_t* trova_coda(Coda_t *q, int fd) {
     Nodo_t *curr = q->head;
     Nodo_t *found = NULL;
 
-    if (config.v > 2) printf("SERVER : trova_coda fd:%d, in opener_q\n", fd);
+    if (config.v > 2){
+      printf("\e[0;36mSERVER : trova_coda fd:%d, in opener_q\n\e[0m", fd);
+      LOCK(&mlog4);
+      fprintf(fl4, "SERVER : trova_coda fd:%d, in opener_q\n", fd);
+      UNLOCK(&mlog4);
+    }
 
     while(found == NULL && curr != NULL) {
-        if (config.v > 2) printf("SERVER : fd: %d\n", curr->data);
+        if (config.v > 2){
+          printf("\e[0;36mSERVER : fd: %d\n\e[0m", curr->data);
+          LOCK(&mlog4);
+          fprintf(fl4, "SERVER : fd: %d\n", curr->data);
+          UNLOCK(&mlog4);
+        }
 
         if (fd == curr->data) {
 

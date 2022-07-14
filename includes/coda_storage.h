@@ -48,7 +48,7 @@ typedef struct StorageQueue {
 //  thread (tipicamente il thread main).                            //
 // ---------------------------------------------------------------- //
 
-CodaStorage_t *init_coda_stor(int limit_num_files, unsigned long storage_capacity);
+CodaStorage_t *init_coda_stor(int limit_num_files, unsigned long storage_capacity, FILE *l, pthread_mutex_t ml);
 
 
 // ------------------------------------------ //
@@ -71,7 +71,7 @@ void canc_coda_stor(CodaStorage_t *q);
 //  al client sul socket fd_locker                                                //
 // ------------------------------------------------------------------------------ //
 
-int ins_coda_stor(CodaStorage_t *q, char *pathname, bool locked, int fd_locker);
+int ins_coda_stor(CodaStorage_t *q, char *pathname, bool locked, int fd_locker, FILE *l, pthread_mutex_t ml);
 
 
 // ------------------------------------------------------------------------------ //
@@ -81,7 +81,7 @@ int ins_coda_stor(CodaStorage_t *q, char *pathname, bool locked, int fd_locker);
 //  (se un altro client ha il lock su quel file, aspetta (wait))                  //
 // ------------------------------------------------------------------------------ //
 
-int updateOpeners_coda_stor(CodaStorage_t *q, char *pathname, bool locked, int fd);
+int updateOpeners_coda_stor(CodaStorage_t *q, char *pathname, bool locked, int fd, FILE *l, pthread_mutex_t ml);
 
 
 // -----------------------------------------------------------------------------//
@@ -167,4 +167,4 @@ void printListFiles_coda_stor(CodaStorage_t *q);
 
 unsigned long lung_coda_stor(CodaStorage_t *q);
 
-#endif 
+#endif

@@ -21,7 +21,7 @@ server.o: ./src/server/server.c ./includes/def_tipodato.h
 coda.o: ./src/server/coda.c ./includes/coda.h ./includes/util.h ./includes/config.h
 	$(CC) $(CFLAGS) -c ./src/server/coda.c $(FLAGS)
 
-coda_storage.o: ./src/server/coda_storage.c ./includes/coda_storage.h ./includes/def_tipodato.h ./includes/util.h ./includes/coda.h ./includes/config.h ./includes/fun_descrit.h
+coda_storage.o: ./src/server/coda_storage.c ./includes/coda_storage.h ./includes/def_tipodato.h ./includes/util.h ./includes/coda.h ./includes/config.h ./includes/fun_descrit.h 
 	$(CC) $(CFLAGS) -c ./src/server/coda_storage.c $(FLAGS)
 
 int_con_lock.o: ./src/server/int_con_lock.c ./includes/int_con_lock.h ./includes/util.h

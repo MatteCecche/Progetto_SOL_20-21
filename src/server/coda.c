@@ -19,14 +19,48 @@ pthread_mutex_t mlog4;
 
 
 
-static inline Nodo_t  *allocNodo()                  { return malloc(sizeof(Nodo_t));  }
-static inline Coda_t *allocCoda()                 { return malloc(sizeof(Coda_t)); }
-static inline void freeNode(Nodo_t *node)           { free((void*)node); }
-static inline void LockQueue(Coda_t *q)            { LOCK(&q->qlock);   }
-static inline void UnlockQueue(Coda_t *q)          { UNLOCK(&q->qlock); }
-static inline void UnlockQueueAndWait(Coda_t *q)   { WAIT(&q->qcond, &q->qlock); }
-static inline void UnlockQueueAndSignal(Coda_t *q) { SIGNAL(&q->qcond); UNLOCK(&q->qlock); }
+static inline Nodo_t  *allocNodo(){
 
+  return malloc(sizeof(Nodo_t));
+
+}
+
+static inline Coda_t *allocCoda(){
+
+  return malloc(sizeof(Coda_t));
+
+}
+
+static inline void freeNode(Nodo_t *node){
+
+  free((void*)node);
+
+}
+
+static inline void LockQueue(Coda_t *q){
+
+  LOCK(&q->qlock);
+
+}
+
+static inline void UnlockQueue(Coda_t *q){
+
+  UNLOCK(&q->qlock);
+
+}
+
+static inline void UnlockQueueAndWait(Coda_t *q){
+
+  WAIT(&q->qcond, &q->qlock);
+
+}
+
+static inline void UnlockQueueAndSignal(Coda_t *q){
+
+  SIGNAL(&q->qcond);
+  UNLOCK(&q->qlock);
+
+}
 
 // --------------------------------------- interfaccia della coda -------------------------------------- //
 

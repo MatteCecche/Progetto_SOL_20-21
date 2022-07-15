@@ -1,15 +1,15 @@
 #!/bin/bash
 
 ./client  -f ./mysock                                                     \
--W ./Files/cane.jpg,./Files/mare.jpg                               \
+-W ./Files/cane.jpg,./Files/mare.jpg                                      \
 -D ./Espulsi                                                              \
 -p                                                                        \
 &
 
 ./client -f ./mysock                                                      \
--W ./OtherFiles/SubDir/juve.txt                                     \
+-W ./OtherFiles/SubDir/juve.txt                                           \
 -D ./Espulsi                                                              \
--a ./OtherFiles/SubDir/juve.txt,./OtherFiles/SubDir/juve.txt  \
+-a ./OtherFiles/SubDir/juve.txt,./OtherFiles/SubDir/juve.txt              \
 -A ./Espulsi                                                              \
 -p                                                                        \
 &
@@ -22,12 +22,13 @@
 
 
 if [ -e server.PID ]; then
-    echo "Killing server..."
+    echo "Chiusura server..."
 
     kill -s SIGHUP $(cat server.PID)
     rm server.PID
+    rm -f server client *.o *.a Letti/* Espulsi/* LettiFinal/*
 
-    echo "Killed"
+    echo "Chiuso"
 else
-  echo "NO server pid found"
+  echo "Non ho trovato il pid del server"
 fi

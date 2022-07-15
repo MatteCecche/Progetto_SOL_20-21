@@ -51,31 +51,25 @@ void *SignalHandler(void *arg) {
 
         switch (sig) {
             case SIGINT:
-                if (config.v > 1){
-                  printf("\e[0;36mSERVER : SignalHandler: Ricevuto SigInt\n\e[0m");
+                if (config.v > 1) printf("\e[0;36mSERVER : SignalHandler: Ricevuto SigInt\n\e[0m");
                   LOCK(&mlog2);
                   fprintf(fl2, "SERVER : SignalHandler: Ricevuto SigInt\n");
                   UNLOCK(&mlog2);
-                }
                 fflush(stdout);
                 *status = CLOSED;
                 break;
             case SIGQUIT:
-                if (config.v > 1){
-                  printf("\e[0;36mSERVER : SignalHandler: Ricevuto SigQuit\n\e[0m");
+                if (config.v > 1) printf("\e[0;36mSERVER : SignalHandler: Ricevuto SigQuit\n\e[0m");
                   LOCK(&mlog2);
                   fprintf(fl2, "SERVER : SignalHandler: Ricevuto SigQuit\n");
                   UNLOCK(&mlog2);
-                }
                 *status = CLOSED;
                 break;
             case SIGHUP:
-                if (config.v > 1){
-                  printf("\e[0;36mSERVER : SignalHandler: Ricevuto SigHup\n\e[0m");
+                if (config.v > 1) printf("\e[0;36mSERVER : SignalHandler: Ricevuto SigHup\n\e[0m");
                   LOCK(&mlog2);
                   fprintf(fl2, "SERVER : SignalHandler: Ricevuto SigHup\n");
                   UNLOCK(&mlog2);
-                }
                 *status = CLOSING;
                 break;
             default:
@@ -111,9 +105,9 @@ pthread_t createSignalHandlerThread(signalThreadArgs_t *signalArg, FILE *l, pthr
     pthread_t tid;
     if(pthread_create(&tid, NULL, SignalHandler, signalArg) != 0) {
 
-        fprintf(stderr, "\e[0;36mSERVER : \e[0;31mERRORE pthread_create failed (SignalHandler)\n\e[0m");
+        fprintf(stderr, "\e[0;36mSERVER : \e[0;31mERRORE pthread_create fallita (SignalHandler)\n\e[0m");
         LOCK(&mlog2);
-        fprintf(fl2, "SERVER : ERRORE pthread_create failed (SignalHandler)\n");
+        fprintf(fl2, "SERVER : ERRORE pthread_create fallita (SignalHandler)\n");
         UNLOCK(&mlog2);
 
         return NULL;

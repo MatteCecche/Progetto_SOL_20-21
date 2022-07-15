@@ -30,6 +30,8 @@ int time_ms = 0;                        //tempo in millisecondi tra l'invio di d
 int cur_dirFiles_read = 0;              // per recWrite
 bool p = false;                         // opzione print
 int pid;                                // process id del client
+//FILE* fl;
+//pthread_mutex_t mlog = PTHREAD_MUTEX_INITIALIZER;
 
 
 
@@ -64,11 +66,11 @@ int gest_writeList(char *arg, char *dirname);
 
 int gest_Append(char *arg, char *dirname);
 
-// ------------------------------------------------------------------------------ //
-//Effettua il parsing di 'arg', ricavando la lista dei file da leggere dal server //
-//  Se ‘dirname’ è diverso da NULL, i file letti dal server dovranno              //
-//  essere scritti in ‘dirname’                                                   //
-// ------------------------------------------------------------------------------ //
+// -------------------------------------------------------------------------------- //
+//  Effettua il parsing di 'arg', ricavando la lista dei file da leggere dal server //
+//  Se ‘dirname’ è diverso da NULL, i file letti dal server dovranno                //
+//  essere scritti in ‘dirname’                                                     //
+// -------------------------------------------------------------------------------- //
 
 int gest_readList(char *arg, char *dirname);
 
@@ -121,8 +123,11 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
+    //if ((fl=fopen(config.path_filelog, "w+t"))==NULL)
+      //fprintf(stderr, "Errore nell'apertura del filelog\n");
+
     extern char *optarg;
-    int opt;
+    int operazione;
     int res = 0;
 
     pid = getpid();
@@ -135,8 +140,8 @@ int main(int argc, char *argv[]) {
         return -1;
     }
 
-    while((opt = getopt(argc, argv, ":hf:w:W:D:a:A:r:R:d:t:l:u:c:p")) != -1) {    // parsing degli argomenti ed opportuna costruzione della coda delle operazioni
-	    switch(opt) {
+    while((operazione = getopt(argc, argv, ":h:f:w:W:D:a:A:r:R:d:t:l:u:c:p")) != -1) {    // parsing degli argomenti ed opportuna costruzione della coda delle operazioni
+	    switch(operazione) {
 	        case 'h':
                 usage(pid);
                 return 0;
@@ -182,7 +187,7 @@ int main(int argc, char *argv[]) {
 	        case 't':
                 time_ms = atoi(optarg);
                 if (time_ms == 0) {
-                    fprintf(stderr, "\e[0;32mCLIENT %d: \e[0;31mERRORE -t number required\n\e[0m", pid);
+                    fprintf(stderr, "\e[0;32mCLIENT %d: \e[0;31mERRORE -t richiede numero \n\e[0m", pid);
                     usage(pid);
                     canc_coda_oper(q);
                     return -1;
@@ -200,13 +205,11 @@ int main(int argc, char *argv[]) {
 	        case 'p':
                 p = true;
 	            break;
-            case ':':
-                switch (optopt)
-                {
+          case ':':
+          switch (optopt){
                 case 'R':
                     res = ins_coda_oper(q, READN, "n=0");
-
-                    break;
+                break;
                 default:
                     usage(pid);
                     canc_coda_oper(q);
@@ -270,11 +273,11 @@ int main(int argc, char *argv[]) {
                 gest_result = gest_Append(q->head->arg, q->head->dirname);
                 break;
             case READLIST:
-                printf("\e[0;32mCLIENT %d: Richiesta letture\n\e[0m", pid);
+                printf("\e[0;32mCLIENT %d: Richiesta lettura\n\e[0m", pid);
                 gest_result = gest_readList(q->head->arg, q->head->dirname);
                 break;
             case READN:
-                printf("\e[0;32mCLIENT %d: Richiesta letture\n\e[0m", pid);
+                printf("\e[0;32mCLIENT %d: Richiesta lettura\n\e[0m", pid);
                 gest_result = gest_readN(q->head->arg, q->head->dirname);
                 break;
             case LOCKLIST:
@@ -794,20 +797,20 @@ int gest_removeList(char *arg) {
 static void usage(int pid) {
 
     printf("\e[0;32mCLIENT %d: usage:\n\e[0m"
-	    "\e[0;32m  -h : stampa la lista di tutte le opzioni accettate dal client\n\e[0m"
-	    "\e[0;32m  -f filename : specifica il nome del socket AF_UNIX a cui connettersi\n\e[0m"
-	    "\e[0;32m  -w dirname[,n=0] : invia al server i file nella cartella 'dirname'\n\e[0m"
-	    "\e[0;32m  -W file1[,file2]: lista di nomi di file da scrivere nel server separati da ','\n\e[0m"
-	    "\e[0;32m  -D dirname : cartella in memoria secondaria dove vengono scritti (lato client) i file che il server rimuove\n\e[0m"
-	    "\e[0;32m  -a : file,file2: file del server a cui fare appende e file (del file system) da cui leggere il contenuto da aggiungere\e[0m"
-	    "\e[0;32m  -A dirname : cartella in memoria secondaria dove vengono scritti (lato client) i file che il server rimuove a casusa dell'append\n\e[0m"
-	    "\e[0;32m  -r file1[,file2] : lista di nomi di file da leggere dal server separati da ','\n\e[0m"
-	    "\e[0;32m  -R [n=0] : legge n file qualsiasi memorizzati nel server; n=0 (o non è specificato) vengono letti tutti i file presenti nel server\n\e[0m"
-	    "\e[0;32m  -d dirname : cartella in memoria secondaria dove scrivere i file letti dal server con l'opzione '-r' o '-R'\n\e[0m"
-	    "\e[0;32m  -t time : ritardo in millisecondi che di due richieste successive al server (se non specificata si suppone -t 0)\n\e[0m"
-	    "\e[0;32m  -l file1[,file2] : lista di nomi di file su cui acquisire la mutua esclusione\n\e[0m"
-	    "\e[0;32m  -u file1[,file2] : lista di nomi di file su cui rilasciare la mutua esclusione\n\e[0m"
-	    "\e[0;32m  -c file1[,file2] : lista di file da rimuovere dal server se presenti\n\e[0m"
-	    "\e[0;32m  -p : stampa per ogni operazione: tipo di operazione, file di riferimento, esito e bytes letti/scritti\n\e[0m",
+	    "\e[0;32m | -h : stampa la lista di tutte le opzioni accettate dal client\n\e[0m"
+	    "\e[0;32m | -f filename : specifica il nome del socket AF_UNIX a cui connettersi\n\e[0m"
+	    "\e[0;32m | -w dirname[,n=0] : invia al server i file nella cartella 'dirname'\n\e[0m"
+	    "\e[0;32m | -W file1[,file2]: lista di nomi di file da scrivere nel server separati da ','\n\e[0m"
+	    "\e[0;32m | -D dirname : cartella in memoria secondaria dove vengono scritti (lato client) i file che il server rimuove\n\e[0m"
+	    "\e[0;32m | -a : file,file2: file del server a cui fare appende e file (del file system) da cui leggere il contenuto da aggiungere\n\e[0m"
+	    "\e[0;32m | -A dirname : cartella in memoria secondaria dove vengono scritti (lato client) i file che il server rimuove a casusa dell'append\n\e[0m"
+	    "\e[0;32m | -r file1[,file2] : lista di nomi di file da leggere dal server separati da ','\n\e[0m"
+	    "\e[0;32m | -R [n=0] : legge n file qualsiasi memorizzati nel server; n=0 (o non è specificato) vengono letti tutti i file presenti nel server\n\e[0m"
+	    "\e[0;32m | -d dirname : cartella in memoria secondaria dove scrivere i file letti dal server con l'opzione '-r' o '-R'\n\e[0m"
+	    "\e[0;32m | -t time : ritardo in millisecondi che di due richieste successive al server (se non specificata si suppone -t 0)\n\e[0m"
+	    "\e[0;32m | -l file1[,file2] : lista di nomi di file su cui acquisire la mutua esclusione\n\e[0m"
+	    "\e[0;32m | -u file1[,file2] : lista di nomi di file su cui rilasciare la mutua esclusione\n\e[0m"
+	    "\e[0;32m | -c file1[,file2] : lista di file da rimuovere dal server se presenti\n\e[0m"
+	    "\e[0;32m | -p : stampa per ogni operazione: tipo di operazione, file di riferimento, esito e bytes letti/scritti\n\e[0m",
 	    pid);
 }

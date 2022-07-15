@@ -24,6 +24,7 @@ extern bool p;      // bool per stampa info si/no
 int csfd = -1;
 
 
+
 int checkPathname(const char* pathname) {
 
     if (pathname == NULL || pathname[0] == '\0' ) {
@@ -51,8 +52,10 @@ int writeSocketFiles(int fd, int nfiles, char *dirname) {
                 fprintf(stderr, "\e[0;32mCLIENT %d: \e[0;31mERRORE %s is not a directory\n\e[0m", pid, dirname);
                 dirname = NULL;
 
-            } else {                                                                                                //dirname è una directory
-                if (p && nfiles > 0) printf("\e[0;32mCLIENT %d: Salvo in dirname %s, %d files\n\e[0m", pid, dirname, nfiles);
+            } else {                                                                                                                //dirname è una cartella
+                if (p && nfiles > 0){
+                  printf("\e[0;32mCLIENT %d: Salvo nella cartella %s, %d files\n\e[0m", pid, dirname, nfiles);
+                }
             }
         } else {
 
@@ -90,7 +93,7 @@ int writeSocketFiles(int fd, int nfiles, char *dirname) {
             return -1;
         }
 
-        if (p) printf("\e[0;32mCLIENT %d: Salva in dirname %s, il file %s di len %d\n\e[0m", pid, dirname, res.pathname, res.datalen);
+        if (p) printf("\e[0;32mCLIENT %d: Nella cartella %s, e' salvato il file %s di len %d\n\e[0m", pid, dirname, res.pathname, res.datalen);
         fflush(stdout);
 
         if (dirname != NULL && dirname[0] != '\0') {                                                            //dirname è una directory valida (controllato all'inizio della funzione)
@@ -113,6 +116,7 @@ int writeSocketFiles(int fd, int nfiles, char *dirname) {
 
 
 int openConnection(const char* sockname, int msec, const struct timespec abstime) {
+
 
     if (sockname == NULL) {
 
@@ -279,8 +283,6 @@ int readFile(const char* pathname, void** buf, size_t* size) {
         return -1;
     }
     int result = res->result;
-
-    printf("\e[0;32mres->datalen: %d\n\e[0m", res->datalen);
 
     if(result == 0) {                                                     //esito positivo, mi verrà inviato il file
 

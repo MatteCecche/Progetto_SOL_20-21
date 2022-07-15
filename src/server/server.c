@@ -435,16 +435,16 @@ int main(int argc, char *argv[]){
         pthread_join(th[i], NULL);
 
 
-
+    sleep(1);
 
     printf("\n\e[0;33m -------- Sunto operazioni effettuate --------\n");                                 // stampa del sunto delle operazioni effettuate
-    printf("SERVER: Numero di file massimo memorizzato nel server: %d\n", storage_q->max_num_files);
-    printf("SERVER: Dimensione massima in bytes raggiunta: %lu\n", storage_q->max_used_storage);
-    printf("SERVER: Algoritmo della cache eseguito %d volte\n", storage_q->replace_occur);
+    printf("SERVER: Numero di file massimo memorizzato nel server: \e[0m%d\n\e[0;33m", storage_q->max_num_files);
+    printf("SERVER: Dimensione massima in bytes raggiunta: \e[0m%lu\n\e[0;33m", storage_q->max_used_storage);
+    printf("SERVER: Algoritmo della cache eseguito \e[0m%d volte\n\e[0;33m", storage_q->replace_occur);
     printf("SERVER: Lista dei file contenuti nello storage al momento della chiusura:\n");
     printListFiles_coda_stor(storage_q);
     printf("\e ----------------------------------------------\n\n");
-    
+
 
     LOCK(&mlog);
     fprintf(fl, "SERVER: Dimensione massima in bytes raggiunta: %lu\n", storage_q->max_used_storage);

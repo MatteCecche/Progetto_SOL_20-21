@@ -1,23 +1,30 @@
 #!/bin/bash
 
-./client  -f ./mysock                                                     \
--W ./Files/cane.jpg,./Files/mare.jpg                                      \
--D ./Espulsi                                                              \
--p                                                                        \
+echo -e "\n\e[0;34m ---------- INIZIO TEST 2 ---------- \n\e[0m"
+
+./client  -f ./mysock                                                           \
+-W ./Files/cane.jpg,./Files/mare.jpg                                            \
+-D ./Espulsi                                                                    \
+-p                                                                              \
 &
 
-./client -f ./mysock                                                      \
--W ./OtherFiles/SubDir/juve.txt                                           \
--D ./Espulsi                                                              \
--a ./OtherFiles/SubDir/juve.txt,./OtherFiles/SubDir/juve.txt              \
--A ./Espulsi                                                              \
--p                                                                        \
+./client -f ./mysock                                                            \
+-w ./Cartella/SubCartella                                                       \
+-D ./Espulsi                                                                    \
+-a ./Cartella/SubCartella/rubinetto.txt,./Cartella/SubCartella/rubinetto.txt    \
+-A ./Espulsi                                                                    \
+-r                                                                              \
+-D ./Letti                                                                      \
+-p                                                                              \
 &
 
 
-./client  -f ./mysock                                                     \
--W ./OtherFiles/SubDir/spazio.jpg,./OtherFiles/SubDir/gatto.jpg           \
--D ./Espulsi                                                              \
+./client  -f ./mysock                                                           \
+-W ./Cartella/SubCartella/spazio.jpg,./Cartella/SubCartella/capre.txt           \
+-D ./Espulsi                                                                    \
+-w ./Files/Imm                                                                  \
+-D ./Espulsi                                                                    \
+-w ./Cartella/SubCartella                                                       \
 -p
 
 
@@ -32,3 +39,7 @@ if [ -e server.PID ]; then
 else
   echo "Non ho trovato il pid del server"
 fi
+
+sleep 3s
+
+echo -e "\n\e[0;34m ---------- TEST 2 COMPLETATO ---------- \n\e[0m"

@@ -169,7 +169,6 @@ int main(int argc, char *argv[]) {
 	            break;
 	        case 'R':
                 if (optarg != NULL) {
-                    printf("optarg: %s\n",optarg);
                     if (optarg[0] != '-') {
                         res = ins_coda_oper(q, READN, optarg);
                     } else {

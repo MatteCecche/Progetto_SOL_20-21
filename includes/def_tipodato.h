@@ -22,7 +22,7 @@ typedef enum {
 typedef struct signalThreadArgs{
 
     int pfd_w;
-    server_status *status;
+    server_status *status;        // stao server
 
 } signalThreadArgs_t;
 

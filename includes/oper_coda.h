@@ -34,59 +34,40 @@ typedef struct OperCoda {
 // Tutte le operazioni devono essere chiamate da un solo thread //
 // ------------------------------------------------------------ //
 
+// ------------------------------ //
+// Alloca ed inizializza una coda //
+// ------------------------------ //
 
-/** Alloca ed inizializza una coda
- *
- *   \retval NULL se si sono verificati problemi nell'allocazione
- *   \retval puntatore alla coda allocata
- */
 OperCoda_t *init_coda_oper();
 
-/** Cancella una coda allocata con init_coda_oper.
- *
- *   \param q puntatore alla coda da cancellare
- */
+// --------------------------------------------- //
+// Cancella una coda allocata con init_coda_oper //
+// --------------------------------------------- //
+
 void canc_coda_oper(OperCoda_t *q);
 
-/** Inserisce un nuovo nodo (operazione) nella coda
- *
- *   \param q puntatore alla coda
- *   \param opt operazione da inserire
- *   \param arg argomento operazione
- *
- *   \retval 0 se successo
- *   \retval errno se errore
- */
+// ----------------------------------------------- //
+// Inserisce un nuovo nodo (operazione) nella coda //
+// ----------------------------------------------- //
+
 int ins_coda_oper(OperCoda_t *q, int opt, char *arg);
 
-/** Setta q->dirname =  dirname, se l'operazione contenuta nella tail della coda è WRITEDIRNAME o WRITELIST
- *
- *   \param q puntatore alla coda
- *   \param dirname nome della directory (dove vengono scritti i file rimossi dal server)
- *
- *   \retval 0 se successo
- *   \retval errno se errore
- */
+// ------------------------------------------------------------------------------------------------------- //
+// Setta q->dirname =  dirname, se l'operazione contenuta nella tail della coda è WRITEDIRNAME o WRITELIST //
+// ------------------------------------------------------------------------------------------------------- //
+
 int setWDirname_coda_oper(OperCoda_t *q, char *dirname);
 
-/** Setta q->dirname =  dirname, se l'operazione contenuta nella tail della coda è READLIST o READN
- *
- *   \param q puntatore alla coda
- *   \param dirname nome della directory (dove vengono scritti i file letti dal server)
- *
- *   \retval 0 se successo
- *   \retval errno se errore
- */
+// ----------------------------------------------------------------------------------------------- //
+// Setta q->dirname =  dirname, se l'operazione contenuta nella tail della coda è READLIST o READN //
+// ----------------------------------------------------------------------------------------------- //
+
 int setRDirname_coda_oper(OperCoda_t *q, char *dirname);
 
-/** Setta q->dirname =  dirname, se l'operazione contenuta nella tail della coda è APPEND
- *
- *   \param q puntatore alla coda
- *   \param dirname nome della directory (dove vengono scritti i file rimossi dal server)
- *
- *   \retval 0 se successo
- *   \retval errno se errore
- */
+// ------------------------------------------------------------------------------------- //
+// Setta q->dirname =  dirname, se l'operazione contenuta nella tail della coda è APPEND //
+// ------------------------------------------------------------------------------------- //
+
 int setADirname_coda_oper(OperCoda_t *q, char *dirname);
 
 

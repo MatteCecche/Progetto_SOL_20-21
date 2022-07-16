@@ -9,7 +9,7 @@
 #include <assert.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/un.h> /* ind AF_UNIX */
+#include <sys/un.h>
 #include <ctype.h>
 #include <fcntl.h>
 
@@ -32,7 +32,7 @@ typedef struct threadArgs {
     int pfd;
     int thid;
     Coda_t *q;
-    IntConLock_t *iwl;
+    IntConLock_t *iwl;          // numero client attivi
 
 } threadArgs_t;
 
@@ -40,11 +40,11 @@ typedef struct threadArgs {
 
 // ------------------------------------------------------------------ variabili globali -------------------------------------------- //
 
-struct config_struct config;
+struct config_struct config;          // variabile che memorizza i dati della configurazione con cui è stato avviato il server
 
-CodaStorage_t *storage_q;
+CodaStorage_t *storage_q;             // puntatore alla coda dei file dello storage
 
-server_status status = CLOSED;
+server_status status = CLOSED;        // variabile che rappresenta lo stato del server
 
 FILE* fl;
 
@@ -81,7 +81,7 @@ void *Worker(void *arg);
 int main(int argc, char *argv[]){
 
     int pfd[2];                 //pipe per comunicazione tra workers e main
-    int spfd[2];                //signal pipe
+    int spfd[2];                //pipe per comunicazione (dei segnali) tra il thread signal_handler e main
 
 
     if (argc != 3 || strcmp(argv[1], "-c")) {
@@ -95,21 +95,8 @@ int main(int argc, char *argv[]){
 
     printf("%s\n",config.path_filelog);
 
-
     if ((fl=fopen(config.path_filelog, "w+t"))==NULL)
       fprintf(stderr, "Errore nell'apertura del filelog\n");
-
-
-    printf("\e[0;35mconfig verbosity: %d\e[0m\n", config.v);
-
-    if (config.v > 2) {
-
-        printf("config.num_workers: %d\n", config.num_workers);
-        printf("config.sockname: %s\n", config.sockname);
-        printf("config.limit_num_files: %d\n", config.limit_num_files);
-        printf("config.storage_capacity: %lu\n", config.storage_capacity);
-        printf("config.path_filelog: %s\n", config.path_filelog);
-    }
 
     Coda_t *q = init_coda(fl, mlog);                // Creo ed inizializzo la coda utilizzata dal main per comunicare i fd agli Workers
     if (!q){
@@ -213,7 +200,7 @@ int main(int argc, char *argv[]){
 
 
     int pfd_r = pfd[0];                                                           //fd lettura pipe
-    fcntl(pfd_r, F_SETFL, O_NONBLOCK);
+    fcntl(pfd_r, F_SETFL, O_NONBLOCK);                                            //esegue un operazione su pfd_r determinata da F_SETFL(Imposta i flags del file descriptor al valore specificato(in questo caso O_NONBLOCK (impedisce all'open di bloccare per molto tempo l'apertura del file)))
 
     int fd_sk;                                                                    // socket di connessione
     int fd_c;                                                                     // socket di I/O con un client
@@ -225,7 +212,7 @@ int main(int argc, char *argv[]){
     strncpy(sa.sun_path, config.sockname, UNIX_PATH_MAX);
     sa.sun_family = AF_UNIX;
 
-    unlink(config.sockname);
+    unlink(config.sockname);                                                      // elimina il pathname dal filesystem
     fd_sk = socket(AF_UNIX,SOCK_STREAM,0);
     if(fd_sk < 0) {
 
@@ -250,7 +237,6 @@ int main(int argc, char *argv[]){
     if (spfd[0] > fd_num) fd_num = spfd[0];
 
     FD_ZERO(&set);
-
     FD_SET(fd_sk, &set);
     FD_SET(pfd_r, &set);
     FD_SET(spfd[0], &set);
@@ -258,13 +244,6 @@ int main(int argc, char *argv[]){
     int temp = -1;
 
     while (((temp = checkTotalClients(iwl)) != 0 && status == CLOSING) || status == RUNNING) {
-
-        if (config.v > 2){
-          printf("\e[0;36mSERVER : Inizio while, totalCLient = %d\n\e[0m", temp);
-          LOCK(&mlog);
-          fprintf(fl, "SERVER : Inizio while, totalCLients = %d\n", temp);
-          UNLOCK(&mlog);
-        }
 
         rdset = set;                                                              // preparo maschera per select
 
@@ -277,14 +256,6 @@ int main(int argc, char *argv[]){
             exit(-1);
         }
         else {                                                                    // select OK
-
-            if (config.v > 2){
-              printf("\e[0;36mSERVER: select ok\n\e[0m");
-              LOCK(&mlog);
-              fprintf(fl, "SERVER: select ok\n");
-              UNLOCK(&mlog);
-            }
-            fflush(stdout);
 
             for (fd = 0; fd <= fd_num; fd++) {
 
@@ -302,18 +273,17 @@ int main(int argc, char *argv[]){
                             exit(-1);
                         }
 
-                        if (config.v > 2){
-                          printf("\e[0;36mSERVER : Appena fatta accept, nuovo fd:%d\n\e[0m", fd_c);
-                          LOCK(&mlog);
-                          fprintf(fl, "SERVER : Appena fatta accept, nuovo fd:%d\n", fd_c);
-                          UNLOCK(&mlog);
-                        }
+                        printf("\e[0;36mSERVER : Nuovo client connesso, nuovo fd :%d\n\e[0m", fd_c);
+                        LOCK(&mlog);
+                        fprintf(fl, "SERVER : Nuovo client connesso, nuovo fd:%d\n", fd_c);
+                        UNLOCK(&mlog);
                         fflush(stdout);
 
                         FD_SET(fd_c, &set);
                         addClient(iwl);
 
                         if (fd_c > fd_num) fd_num = fd_c;
+
                     } else if (fd == pfd_r) {                                     //aggiungo in set gli fd (se > 0) che leggo dalla pipe (con workers)
 
                         int num;
@@ -321,12 +291,6 @@ int main(int argc, char *argv[]){
 
                         while ((nread = readn(fd, &num, sizeof(num))) == sizeof(num)) {
 
-                            if (config.v > 2){
-                              printf("\e[0;36mSERVER : Letto fd:%d dalla pipe\n\e[0m", num);
-                              LOCK(&mlog);
-                              fprintf(fl, "SERVER : Letto fd:%d dalla pipe\n", num);
-                              UNLOCK(&mlog);
-                            }
                             fflush(stdout);
                             if (num > 0) {
                                 FD_SET(num, &set);
@@ -349,12 +313,11 @@ int main(int argc, char *argv[]){
 
                         if (status == CLOSING) {
 
-                            if (config.v > 1){
                               printf("\e[0;36mSERVER : Non accetto nuove connessioni\n\e[0m");
                               LOCK(&mlog);
                               fprintf(fl, "SERVER : Non accetto nuove connessioni\n");
                               UNLOCK(&mlog);
-                            }
+
                             FD_CLR(fd_sk, &set);                                  //tolgo socket di connessione dal set
                             fd_num = aggiorna(&set, fd_num);
                             close(fd_sk);
@@ -362,12 +325,10 @@ int main(int argc, char *argv[]){
                         }
                         else if (status == CLOSED) {
 
-                            if (config.v > 1){
                               printf("\e[0;36mSERVER : Non accetto nuove richieste\n\e[0m");
                               LOCK(&mlog);
                               fprintf(fl, "SERVER : Non accetto nuove richieste\n");
                               UNLOCK(&mlog);
-                            }
 
                         } else {                                                                // (finisco il ciclo for in cui sono, quando torno al while esco)
                             fprintf(stderr, "\e[0;36mSERVER : Stato server non consistente\n\e[0m");
@@ -391,24 +352,11 @@ int main(int argc, char *argv[]){
                         FD_CLR(fd, &set);                                                   // tolgo fd dal set
                         fd_num = aggiorna(&set, fd_num);
 
-                        if (config.v > 2){
-                          printf("\e[0;36mSERVER : Master pushed <%d>\n\e[0m", fd);
-                          LOCK(&mlog);
-                          fprintf(fl, "SERVER : Master pushed <%d>\n", fd);
-                          UNLOCK(&mlog);
-                        }
-                        fflush(stdout);
+                          fflush(stdout);
                     }
                 }
             }
         }
-    }
-
-    if (config.v > 2){
-      printf("\e[0;36mSERVER : SERVER IN FASE DI CHIUSURA (uscito dal while)\n\e[0m");
-      LOCK(&mlog);
-      fprintf(fl, "SERVER : SERVER IN FASE DI CHIUSURA (uscito dal while)\n");
-      UNLOCK(&mlog);
     }
 
     broadcast_coda_stor(storage_q);                           // svegliamo gli worker fermi su una wait (di coda_storage)
@@ -434,8 +382,6 @@ int main(int argc, char *argv[]){
     for (i = 0; i < config.num_workers; ++i)                  // aspetto la terminazione di tutti worker
         pthread_join(th[i], NULL);
 
-
-    sleep(1);
 
     printf("\n\e[0;33m -------- Sunto operazioni effettuate --------\n");                                 // stampa del sunto delle operazioni effettuate
     printf("SERVER: Numero di file massimo memorizzato nel server: \e[0m%d\n\e[0;33m", storage_q->max_num_files);
@@ -494,81 +440,82 @@ int requestHandler (int myid, int fd, msg_richiesta_t req) {
         case OPENFILE: {
             if (req.flag == O_CREATE) {
                 res.result = ins_coda_stor(storage_q, req.pathname, false, fd, fl, mlog);
-                if (config.v > 1){
+
                   printf("\e[0;36mSERVER : l'operazione >Openfile_O_CREATE< di %s, fd: %d, e' stata eseguita con esito: %s\n\e[0m", req.pathname, fd, myStrerror(res.result));
                   LOCK(&mlog);
                   fprintf(fl, "SERVER : l'operazione >Openfile_O_CREATE< di %s, fd: %d, e' stata eseguita con esito: %s\n", req.pathname, fd, myStrerror(res.result));
                   UNLOCK(&mlog);
-                }
+
                 if (res.result <= 0) return res.result;
 
             } else if (req.flag == O_CREATE_LOCK) {
                 res.result = ins_coda_stor(storage_q, req.pathname, true, fd, fl, mlog);
-                if (config.v > 1){
+
                   printf("\e[0;36mSERVER : l'operazione >Openfile_O_CREATE_LOCK< di %s, fd: %d, e' stata eseguita con esito: %s\n\e[0m", req.pathname, fd, myStrerror(res.result));
                   LOCK(&mlog);
                   fprintf(fl, "SERVER : l'operazione >Openfile_O_CREATE_LOCK< di %s, fd: %d, e' stata eseguita con esito: %s\n", req.pathname, fd, myStrerror(res.result));
                   UNLOCK(&mlog);
-                }
+
                 if (res.result <= 0) return res.result;
 
             } else if (req.flag == O_LOCK) {
                 res.result = updateOpeners_coda_stor(storage_q, req.pathname, true, fd, fl, mlog);
-                if (config.v > 1){
+
                   printf("\e[0;36mSERVER : l'operazione >Openfile_O_LOCK< di %s, fd: %d, e'stata eseguita con esito: %s\n\e[0m", req.pathname, fd, myStrerror(res.result));
                   LOCK(&mlog);
                   fprintf(fl, "SERVER : l'operazione >Openfile_O_LOCK< di %s, fd: %d, e'stata eseguita con esito: %s\n", req.pathname, fd, myStrerror(res.result));
                   UNLOCK(&mlog);
-                }
+
                 if (res.result <= 0) return res.result;
 
             } else if (req.flag == O_NULL) {
                 res.result = updateOpeners_coda_stor(storage_q, req.pathname, false, fd, fl, mlog);
-                if (config.v > 1){
+
                   printf("\e[0;36mSERVER : l'operazione >Openfile_O_NULL< di %s, fd: %d, e' stata eseguita con esito: %s\n\e[0m", req.pathname, fd, myStrerror(res.result));
                   LOCK(&mlog);
                   fprintf(fl, "SERVER : l'operazione >Openfile_O_NULL< di %s, fd: %d, e' stata eseguita con esito: %s\n", req.pathname, fd, myStrerror(res.result));
                   UNLOCK(&mlog);
-                }
+
                 if (res.result <= 0) return res.result;
 
             } else {                      // flag non riconosciuto
 
-                if (config.v > 1){
+
                   printf("\e[0;36mSERVER : l'operazione >Openfile< fd: %d, flag non riconosciuto\n\e[0m", fd);
                   LOCK(&mlog);
                   fprintf(fl, "SERVER : l'operazione >Openfile< fd: %d, flag non riconosciuto\n", fd);
                   UNLOCK(&mlog);
-                }
+
                 res.result = EINVAL;
             }
         }
         break;
         case READFILE: {
             res.result = readFile_coda_stor(storage_q, req.pathname, fd);
-            if (config.v > 1){
+
               printf("\e[0;36mSERVER : l'operazione >Readfile<, fd: %d, e' stata eseguita con esito: %s\n\e[0m", fd, myStrerror(res.result));
               LOCK(&mlog);
               fprintf(fl, "SERVER : l'operazione >Readfile<, fd: %d, e' stata eseguita con esito: %s\n", fd, myStrerror(res.result));
               UNLOCK(&mlog);
-            }
+
             if (res.result <= 0) return res.result;
         }
         break;
         case READNFILES: {
             res.result = readNFiles_coda_stor(storage_q, req.pathname, fd, req.datalen);
-            if (config.v > 1){
+
               printf("\e[0;36mSERVER : l'operazione >ReadNfiles<, fd: %d, e' stata eseguita con esito: %s\n\e[0m", fd, myStrerror(res.result));
               LOCK(&mlog);
               fprintf(fl, "SERVER : l'operazione >ReadNfiles<, fd: %d, e' stata eseguita con esito: %s\n", fd, myStrerror(res.result));
               UNLOCK(&mlog);
-            }
+
             if (res.result <= 0) return res.result;
         }
         break;
         case WRITEFILE: {
             void *buf = malloc(req.datalen);
             if (buf == NULL) {
+
                 fprintf(stderr, "\e[0;36mSERVER : fd: %d, malloc WriteToFile fallita\n\e[0m", fd);
                 LOCK(&mlog);
                 fprintf(fl, "SERVER : fd: %d, malloc WriteToFile fallita\n", fd);
@@ -580,61 +527,58 @@ int requestHandler (int myid, int fd, msg_richiesta_t req) {
             int nread = readn(fd, buf, req.datalen);
             if (nread == 0) {
 
-                if (config.v > 2){
-                  printf("\e[0;36mSERVER : \e[0;31mERRORE Worker %d, chiudo:%d\n\e[0m", myid, fd);
+
                   LOCK(&mlog);
                   fprintf(fl, "SERVER : ERRORE Worker %d, chiudo:%d\n", myid, fd);
                   UNLOCK(&mlog);
-                }
-                fflush(stdout);
+                  fflush(stdout);
 
-                free(buf);
-                int esito = closeFdFiles_coda_stor(storage_q, fd);
-                if (config.v > 1){
+                  free(buf);
+                  int esito = closeFdFiles_coda_stor(storage_q, fd);
                   printf("\e[0;36mSERVER : Close fd:%d files, %s\e[0m", fd, myStrerror(esito));
                   LOCK(&mlog);
                   fprintf(fl, "SERVER : Close fd:%d files, %s", fd, myStrerror(esito));
                   UNLOCK(&mlog);
-                }
-                close(fd);
+                  close(fd);
 
-                return -1;
+                  return -1;
+
             } else if (nread != req.datalen) {
-                fprintf(stderr, "\e[0;36mSERVER : \e[0;31mERRORE nread worker, lettura parziale\n\e[0m");
-                LOCK(&mlog);
-                fprintf(fl, "SERVER : ERRORE nread worker, lettura parziale\n");
-                UNLOCK(&mlog);
-                fflush(stderr);
 
-                if (config.v > 2){
-                  printf("\e[0;36mSERVER : \e[0;31mERRORE Worker %d, chiudo:%d\n\e[0m", myid, fd);
+                  fprintf(stderr, "\e[0;36mSERVER : \e[0;31mERRORE nread worker, lettura parziale\n\e[0m");
+                  LOCK(&mlog);
+                  fprintf(fl, "SERVER : ERRORE nread worker, lettura parziale\n");
+                  UNLOCK(&mlog);
+                  fflush(stderr);
+
+
                   LOCK(&mlog);
                   fprintf(fl, "SERVER : ERRORE Worker %d, chiudo:%d\n", myid, fd);
                   UNLOCK(&mlog);
-                }
-                fflush(stdout);
+                  fflush(stdout);
 
-                free(buf);
-                int esito = closeFdFiles_coda_stor(storage_q, fd);
-                if (config.v > 1){
+                  free(buf);
+                  int esito = closeFdFiles_coda_stor(storage_q, fd);
+
                   printf("\e[0;36mSERVER : Close fd:%d files, %s\e[0m", fd, myStrerror(esito));
                   LOCK(&mlog);
                   fprintf(fl, "SERVER : Close fd:%d files, %s", fd, myStrerror(esito));
                   UNLOCK(&mlog);
-                }
-                close(fd);
+                  close(fd);
 
-                return -1;
+                  return -1;
+
             } else {
-                res.result = writeFile_coda_stor(storage_q, req.pathname, fd, buf, req.datalen);
-                free(buf);
-                if (config.v > 1){
+
+                  res.result = writeFile_coda_stor(storage_q, req.pathname, fd, buf, req.datalen);
+                  free(buf);
+
                   printf("\e[0;36mSERVER : l'operazione >WriteToFile<, fd: %d, e' stata eseguita con esito: %s\n\e[0m", fd, myStrerror(res.result));
                   LOCK(&mlog);
                   fprintf(fl, "SERVER : l'operazione >WriteToFile<, fd: %d, e' stata eseguita con esito: %s\n", fd, myStrerror(res.result));
                   UNLOCK(&mlog);
-                }
-                if (res.result <= 0) return res.result;
+
+                  if (res.result <= 0) return res.result;
 
             }
         }
@@ -654,139 +598,138 @@ int requestHandler (int myid, int fd, msg_richiesta_t req) {
             int nread = readn(fd, buf, req.datalen);
             if (nread == 0) {
 
-                if (config.v > 2){
 
-                  printf("\e[0;36mSERVER : \e[0;31mERRORE Worker %d, chiudo:%d\n\e[0m", myid, fd);
+
+
                   LOCK(&mlog);
                   fprintf(fl, "SERVER : ERRORE Worker %d, chiudo:%d\n", myid, fd);
                   UNLOCK(&mlog);
-                }
-                fflush(stdout);
 
-                free(buf);
-                int esito = closeFdFiles_coda_stor(storage_q, fd);
-                if (config.v > 1){
+                  fflush(stdout);
+
+                  free(buf);
+                  int esito = closeFdFiles_coda_stor(storage_q, fd);
                   printf("\e[0;36mSERVER : Close fd:%d files, e' stata eseguita con esito:%s\e[0m", fd, myStrerror(esito));
                   LOCK(&mlog);
                   fprintf(fl, "SERVER : Close fd:%d files, e' stata eseguita con esito:%s", fd, myStrerror(esito));
                   UNLOCK(&mlog);
-                }
-                close(fd);
+                  close(fd);
 
-                return -1;
+                  return -1;
+
             } else if (nread != req.datalen) {
+
                 fprintf(stderr, "\e[0;36mSERVER : \e[0;31mERRORE nread worker, lettura parziale\n\e[0m");
                 LOCK(&mlog);
                 fprintf(fl, "SERVER : ERRORE nread worker, lettura parziale\n");
                 UNLOCK(&mlog);
                 fflush(stderr);
 
-                if (config.v > 2){
-                  printf("\e[0;36mSERVER : \e[0;31mERRORE Worker %d, chiudo:%d\n\e[0m", myid, fd);
-                  LOCK(&mlog);
-                  fprintf(fl, "SERVER : ERRORE Worker %d, chiudo:%d\n", myid, fd);
-                  UNLOCK(&mlog);
-                }
+                LOCK(&mlog);
+                fprintf(fl, "SERVER : ERRORE Worker %d, chiudo:%d\n", myid, fd);
+                UNLOCK(&mlog);
+
                 fflush(stdout);
 
                 free(buf);
                 int esito = closeFdFiles_coda_stor(storage_q, fd);
-                if (config.v > 1){
 
-                  printf("\e[0;36mSERVER : Close fd:%d files, e' stata eseguita con esito:%s\e[0m", fd, myStrerror(esito));
-                  LOCK(&mlog);
-                  fprintf(fl, "SERVER : Close fd:%d files, e' stata eseguita con esito:%s", fd, myStrerror(esito));
-                  UNLOCK(&mlog);
-                }
+
+                printf("\e[0;36mSERVER : Close fd:%d files, e' stata eseguita con esito:%s\e[0m", fd, myStrerror(esito));
+                LOCK(&mlog);
+                fprintf(fl, "SERVER : Close fd:%d files, e' stata eseguita con esito:%s", fd, myStrerror(esito));
+                UNLOCK(&mlog);
+
                 close(fd);
 
                 return -1;
+
             } else {
-                res.result = appendToFile_coda_stor(storage_q, req.pathname, fd, buf, req.datalen);
-                free(buf);
-                if (config.v > 1){
+
+                  res.result = appendToFile_coda_stor(storage_q, req.pathname, fd, buf, req.datalen);
+                  free(buf);
 
                   printf("\e[0;36mSERVER : l'operazione >AppendToFile<, fd: %d, e' stata eseguita con esito: %s\n\e[0m", fd, myStrerror(res.result));
                   LOCK(&mlog);
                   fprintf(fl, "SERVER : l'operazione >AppendToFile<, fd: %d, e' stata eseguita con esito: %s\n", fd, myStrerror(res.result));
                   UNLOCK(&mlog);
-                }
+
                 if (res.result <= 0) return res.result;
             }
         }
         break;
         case LOCKFILE: {
-            res.result = lockFile_coda_stor(storage_q, req.pathname, fd);
-            if (config.v > 1){
+
+               res.result = lockFile_coda_stor(storage_q, req.pathname, fd);
 
                printf("\e[0;36mSERVER : l'operazione >LockFile<, fd: %d, e' stata eseguita con esito: %s\n\e[0m", fd, myStrerror(res.result));
                LOCK(&mlog);
                fprintf(fl, "SERVER : l'operazione >LockFile<, fd: %d, e' stata eseguita con esito: %s\n", fd, myStrerror(res.result));
                UNLOCK(&mlog);
-             }
+
             if (res.result <= 0) return res.result;
         }
         break;
         case UNLOCKFILE: {
-            res.result = unlockFile_coda_stor(storage_q, req.pathname, fd);
-            if (config.v > 1){
+
+               res.result = unlockFile_coda_stor(storage_q, req.pathname, fd);
 
                printf("\e[0;36mSERVER : l'operazione >UnlockFile<, fd: %d, e' stata eseguita con esito: %s\n\e[0m", fd, myStrerror(res.result));
                LOCK(&mlog);
                fprintf(fl, "SERVER : l'operazione >UnlockFile<, fd: %d, e' stata eseguita con esito: %s\n", fd, myStrerror(res.result));
                UNLOCK(&mlog);
-             }
+
             if (res.result <= 0) return res.result;
         }
         break;
         case CLOSEFILE: {
-            res.result = closeFile_coda_stor(storage_q, req.pathname, fd);
-            if (config.v > 1){
+
+               res.result = closeFile_coda_stor(storage_q, req.pathname, fd);
 
                printf("\e[0;36mSERVER : l'operazione >CloseFile<, fd: %d, e' stata eseguita con esito: %s\n\e[0m", fd, myStrerror(res.result));
                LOCK(&mlog);
                fprintf(fl, "SERVER : l'operazione >CloseFile<, fd: %d, e' stata eseguita con esito: %s\n", fd, myStrerror(res.result));
                UNLOCK(&mlog);
-             }
+
             if (res.result <= 0) return res.result;
         }
         break;
         case REMOVEFILE: {
-            res.result = removeFile_coda_stor(storage_q, req.pathname, fd);
-            if (config.v > 1){
+
+              res.result = removeFile_coda_stor(storage_q, req.pathname, fd);
 
               printf("\e[0;36mSERVER : l'operazione >RemoveFile<, fd: %d, e' stata eseguita con esito: %s\n\e[0m", fd, myStrerror(res.result));
               LOCK(&mlog);
               fprintf(fl, "SERVER : l'operazione >RemoveFile<, fd: %d, e' stata eseguita con esito: %s\n", fd, myStrerror(res.result));
               UNLOCK(&mlog);
-            }
+
             if (res.result <= 0) return res.result;
         }
         break;
         default: {                                                      // non dovrebbe succedere (api scritta male)
-            res.result = EPERM;
-            if (config.v > 1){
+
+              res.result = EPERM;
 
               printf("\e[0;36mSERVER : >Operazione< richiesta da fd: %d non riconosciuta\e[0m", fd);
               LOCK(&mlog);
               fprintf(fl, "SERVER : >Operazione< richiesta da fd: %d non riconosciuta", fd);
               UNLOCK(&mlog);
-            }
+
         }
     }
 
     if (writen(fd, &res, sizeof(res)) != sizeof(res)) {                 //invio messaggio al client (finisco qui nel caso in caso di errore (e fd ancora aperto))
-        close(fd);
-        if (config.v > 1){
+
+          close(fd);
 
           fprintf(stderr, "\e[0;36mSERVER : \e[0;31mERRORE writen res requestHandler errore\n\e[0m");
           LOCK(&mlog);
           fprintf(fl, "SERVER : ERRORE writen res requestHandler errore\n");
           UNLOCK(&mlog);
-        }
-        fflush(stdout);
 
-        return -1;
+          fflush(stdout);
+
+          return -1;
     }
 
     fflush(stdout);
@@ -835,83 +778,70 @@ void *Worker(void *arg) {
               LOCK(&mlog);
               fprintf(fl, "SERVER : Worker %d, ha processato <%ld> messages\n", myid, consumed);
               UNLOCK(&mlog);
-            fflush(stdout);
+              fflush(stdout);
 
-            return NULL;
+              return NULL;
         }
 
         ++consumed;
 
-           LOCK(&mlog);
-           fprintf(fl, "SERVER : Worker %d: estratto <%d>\n", myid, fd);
-           UNLOCK(&mlog);
-        fflush(stdout);
+           nread = readn(fd, &req, sizeof(msg_richiesta_t));
+           if (nread == 0) {
 
-        nread = readn(fd, &req, sizeof(msg_richiesta_t));
-        if (nread == 0) {
-
-            if (config.v > 2){
-
-               printf("\e[0;36mSERVER : \e[0;31mERRORE Worker %d, chiudo:%d\n\e[0m", myid, fd);
                LOCK(&mlog);
                fprintf(fl, "SERVER : ERRORE Worker %d, chiudo:%d\n", myid, fd);
                UNLOCK(&mlog);
-            }
-            fflush(stdout);
 
-            int esito = closeFdFiles_coda_stor(storage_q, fd);
-            if (config.v > 1){
+               fflush(stdout);
 
-              printf("\e[0;36mSERVER : Close fd: %d, e' stata eseguita con esito: %s\n\e[0m", fd, myStrerror(esito));
-              LOCK(&mlog);
-              fprintf(fl, "SERVER : Close fd: %d, e' stata eseguita con esito: %s\n", fd, myStrerror(esito));
-              UNLOCK(&mlog);
-            }
-            close(fd);
-            fd = -fd;
+               int esito = closeFdFiles_coda_stor(storage_q, fd);
 
-            deleteClient(iwl);
 
-        } else if (nread != sizeof(msg_richiesta_t)) {
+               printf("\e[0;36mSERVER : Close fd: %d, e' stata eseguita con esito: %s\n\e[0m", fd, myStrerror(esito));
+               LOCK(&mlog);
+               fprintf(fl, "SERVER : Close fd: %d, e' stata eseguita con esito: %s\n", fd, myStrerror(esito));
+               UNLOCK(&mlog);
 
-            fprintf(stderr, "\e[0;36mSERVER : \e[0;31mERRORE nread worker, lettura parziale\n\e[0m");
-            LOCK(&mlog);
-            fprintf(fl, "SERVER : ERRORE nread worker, lettura parziale\n");
-            UNLOCK(&mlog);
-            fflush(stderr);
+               close(fd);
+               fd = -fd;
 
-            if (config.v > 2){
+               deleteClient(iwl);
 
-              printf("\e[0;36mSERVER : \e[0;31mERRORE Worker %d, chiudo:%d\n\e[0m", myid, fd);
-              LOCK(&mlog);
-              fprintf(fl, "SERVER : ERRORE Worker %d, chiudo:%d\n", myid, fd);
-              UNLOCK(&mlog);
-            }
-            int esito = closeFdFiles_coda_stor(storage_q, fd);
-            if (config.v > 1){
+             } else if (nread != sizeof(msg_richiesta_t)) {
+
+               fprintf(stderr, "\e[0;36mSERVER : \e[0;31mERRORE nread worker, lettura parziale\n\e[0m");
+               LOCK(&mlog);
+               fprintf(fl, "SERVER : ERRORE nread worker, lettura parziale\n");
+               UNLOCK(&mlog);
+               fflush(stderr);
+
+               LOCK(&mlog);
+               fprintf(fl, "SERVER : ERRORE Worker %d, chiudo:%d\n", myid, fd);
+               UNLOCK(&mlog);
+
+               int esito = closeFdFiles_coda_stor(storage_q, fd);
+
               printf("\e[0;36mSERVER : Close fd: %d, esito: %s\n\e[0m", fd, myStrerror(esito));
               LOCK(&mlog);
               fprintf(fl, "SERVER : Close fd: %d, esito: %s\n", fd, myStrerror(esito));
               UNLOCK(&mlog);
-            }
-            fflush(stdout);
 
-            close(fd);
-            fd = -fd;
+              fflush(stdout);
 
-            deleteClient(iwl);
-        } else {
+              close(fd);
+              fd = -fd;
 
-            if (config.v > 1){
+              deleteClient(iwl);
+            } else {
 
               printf("\e[0;36mSERVER : Il Worker %d, ha preso la richiesta : %d, da fd : %d\n\e[0m", myid, req.op, fd);
               LOCK(&mlog);
               fprintf(fl, "SERVER : Il Worker %d, ha preso la richiesta : %d, da fd : %d\n", myid, req.op, fd);
               UNLOCK(&mlog);
-            }
-            fflush(stdout);
 
-            if (requestHandler(myid, fd, req) != 0) {                             // client disconnesso
+              fflush(stdout);
+
+              if (requestHandler(myid, fd, req) != 0) {                           // client disconnesso
 
                 fd = -fd;                                                         // in modo che nel main non si riaggiunga nel set
                 deleteClient(iwl);
@@ -926,31 +856,20 @@ void *Worker(void *arg) {
             UNLOCK(&mlog);
             fflush(stderr);
             exit(-1);
-        } else {
-
-            if (config.v > 2){
-
-              printf("SERVER : fd %d messo nella pipe\n\e[0m", fd);
-              LOCK(&mlog);
-              fprintf(fl, "SERVER : fd %d messo nella pipe\n", fd);
-              UNLOCK(&mlog);
-            }
-            fflush(stdout);
         }
 
         memset(&req, '\0', sizeof(req));
-    }
 
-    if (config.v > 1){
+    }
 
       printf("\e[0;36mSERVER : Worker %d, ha consumato <%ld> messaggi, adesso esce\n\e[0m", myid, consumed);
       LOCK(&mlog);
       fprintf(fl, "SERVER : Worker %d, ha consumato <%ld> messaggi, adesso esce\n", myid, consumed);
       UNLOCK(&mlog);
-    }
-    fflush(stdout);
 
-    return NULL;
+      fflush(stdout);
+
+      return NULL;
 
 
 }

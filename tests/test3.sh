@@ -8,8 +8,9 @@ export SERVER_PID
 
 sleep 2s
 
-bash -c 'sleep 30 && kill -2 ${SERVER_PID}' &
 echo -e "30 secondi all'invio del segnale SIGINT"
+
+sleep 2s
 
 # faccio partire gli script per generare i client
 array_id=()
@@ -26,7 +27,9 @@ for i in "${array_id[@]}"; do
 	wait "${i}" 2>/dev/null
 done
 
+kill -s SIGINT ${SERVER_PID}
+sleep 2s
+
 wait $SERVER_PID
 killall -q ./client #chiudo eventuali processi rimasti
-rm -f server client *.o *.a Letti/* Espulsi/* LettiFinal/*
 echo -e "\n\e[0;34m ---------- TEST 3 COMPLETATO ---------- \n\e[0m"

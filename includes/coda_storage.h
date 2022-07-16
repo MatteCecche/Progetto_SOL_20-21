@@ -32,7 +32,7 @@ typedef struct StorageQueue {
     NodoStorage_t*      head;                     // elemento di testa
     NodoStorage_t*      tail;                     // elemento di coda
     int                 cur_numfiles;             // lunghezza ovvero numero di files in storage
-    unsigned long       cur_usedstorage;          //dimensione storage attuale in bytes
+    unsigned long       cur_usedstorage;          // dimensione storage attuale in bytes
     int                 max_num_files; 			      // numero massimo raggiunto di file memorizzati nel server
     unsigned long       max_used_storage; 	      // dimensione massima in bytes raggiunta dal file storage;
     int                 replace_occur;			      // numero di volte in cui l’algoritmo di rimpiazzamento della cache è stato eseguito
@@ -58,7 +58,7 @@ CodaStorage_t *init_coda_stor(int limit_num_files, unsigned long storage_capacit
 void broadcast_coda_stor(CodaStorage_t *q);
 
 // -------------------------------------------------------------- //
-// Cancella una coda allocata con initQueue. Deve essere chiamata //
+// Cancella una coda allocata con initCoda. Deve essere chiamata  //
 // da un solo thread (tipicamente il thread main).                //
 // -------------------------------------------------------------- //
 
@@ -149,7 +149,7 @@ int closeFdFiles_coda_stor(CodaStorage_t *q, int fd);
 
 
 // ------------------------------------------------------ //
-// Rimuove il file identificato da pathname dalla coda,   //
+//  Rimuove il file identificato da pathname dalla coda,  //
 //  in caso di successo comunica al client sul socket fd  //
 // ------------------------------------------------------ //
 

@@ -16,7 +16,6 @@ struct config_struct {
     char 	          sockname[UNIX_PATH_MAX]; 	        // socket file
     int             limit_num_files;	                // numero limite di file nello storage (config)
     unsigned long   storage_capacity;	                // dimensione dello storage in bytes (config)
-    int             v;                                // livello info (printLevel)
     char            path_filelog[UNIX_PATH_MAX];      // percorso dove si trova il filelog
 
 };

@@ -30,8 +30,7 @@ int time_ms = 0;                        //tempo in millisecondi tra l'invio di d
 int cur_dirFiles_read = 0;              // per recWrite
 bool p = false;                         // opzione print
 int pid;                                // process id del client
-//FILE* fl;
-//pthread_mutex_t mlog = PTHREAD_MUTEX_INITIALIZER;
+
 
 
 
@@ -122,9 +121,6 @@ int main(int argc, char *argv[]) {
 
         return -1;
     }
-
-    //if ((fl=fopen(config.path_filelog, "w+t"))==NULL)
-      //fprintf(stderr, "Errore nell'apertura del filelog\n");
 
     extern char *optarg;
     int operazione;

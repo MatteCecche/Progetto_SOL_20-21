@@ -162,6 +162,8 @@ int openConnection(const char* sockname, int msec, const struct timespec abstime
     return -1;
 }
 
+
+
 int closeConnection(const char* sockname) {
 
     int temp = csfd;
@@ -169,6 +171,8 @@ int closeConnection(const char* sockname) {
 
     return close(temp);
 }
+
+
 
 int openFile(const char* pathname, int flags, const char* dirname) {
 
@@ -238,6 +242,7 @@ int openFile(const char* pathname, int flags, const char* dirname) {
     return writeSocketFiles(csfd, nfiles, dirname);
 
 }
+
 
 
 int readFile(const char* pathname, void** buf, size_t* size) {
@@ -313,6 +318,7 @@ int readFile(const char* pathname, void** buf, size_t* size) {
 }
 
 
+
 int readNFiles(int N, const char* dirname) {
 
     msg_richiesta_t *req = malloc(sizeof(msg_richiesta_t));
@@ -363,6 +369,7 @@ int readNFiles(int N, const char* dirname) {
     } else return -1;
 
 }
+
 
 
 int writeFile(const char* pathname, const char* dirname) {
@@ -473,6 +480,8 @@ int writeFile(const char* pathname, const char* dirname) {
 
 }
 
+
+
 int appendToFile(const char* pathname, void* buf, size_t size, const char* dirname) {
 
     if (checkPathname(pathname) != 0) {
@@ -539,6 +548,8 @@ int appendToFile(const char* pathname, void* buf, size_t size, const char* dirna
 
 }
 
+
+
 int lockFile(const char* pathname) {
 
     if (checkPathname(pathname) != 0) {
@@ -596,6 +607,8 @@ int lockFile(const char* pathname) {
     return 0;
 }
 
+
+
 int unlockFile(const char* pathname) {
 
     if (checkPathname(pathname) != 0) {
@@ -652,6 +665,8 @@ int unlockFile(const char* pathname) {
     return 0;
 }
 
+
+
 int closeFile(const char* pathname) {
 
     if (checkPathname(pathname) != 0) {
@@ -707,6 +722,8 @@ int closeFile(const char* pathname) {
 
     return 0;
 }
+
+
 
 int removeFile(const char* pathname) {
 

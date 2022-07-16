@@ -12,6 +12,10 @@
 #include "../../includes/coda.h"
 #include "../../includes/config.h"
 
+
+// ------------------------------------------------------------------ variabili globali -------------------------------------------- //
+
+
 extern struct config_struct config;
 extern server_status status;
 FILE *fl3;
@@ -20,7 +24,7 @@ pthread_mutex_t mlog3;
 
 
 
-// --------------------------------------- funzioni di utilità ---------------------------------------- //
+// --------------------------------------------------- funzioni di utilità ---------------------------------------------------- //
 
 
 static inline NodoStorage_t  *allocStorageNodo(){
@@ -97,7 +101,7 @@ int manda_client_e_free(int fd, int num_files, NodoStorage_t *poppedH);
 
 
 
-/* ------------------- interfaccia della coda ------------------ */
+// --------------------------------------- interfaccia della coda ------------------------------------------- //
 
 CodaStorage_t *init_coda_stor(int limit_num_files, unsigned long storage_capacity, FILE *l, pthread_mutex_t ml) {
 
@@ -141,7 +145,7 @@ void broadcast_coda_stor(CodaStorage_t *q) {
     while(temp != NULL) {
         if (temp->locked) {
 
-            BCAST(&temp->filecond);
+            BCAST(&temp->filecond);             // pthread_cond_broadcast ()
         }
         temp = temp->next;
     }
@@ -193,12 +197,12 @@ int ins_coda_stor(CodaStorage_t *q, char *pathname, bool locked, int fd, FILE *l
         return EINVAL;
     }
 
-    if (config.v > 2){
+
       printf("\e[0;36mSERVER : ins_coda_stor, fd: %d, pathname: %s\n\e[0m", fd, pathname);
       LOCK(&mlog3);
       fprintf(fl3, "SERVER : ins_coda_stor, fd: %d, pathname: %s\n", fd, pathname);
       UNLOCK(&mlog3);
-    }
+
     fflush(stdout);
 
     NodoStorage_t *n = allocStorageNodo();
@@ -218,7 +222,7 @@ int ins_coda_stor(CodaStorage_t *q, char *pathname, bool locked, int fd, FILE *l
 
     strncpy(n->pathname, pathname, PATH_MAX);
     n->locked = locked;
-    n->fd_locker = (locked) ? fd : -1;
+    n->fd_locker = (locked) ? fd : -1;            // se locked = fd, altrimenti -1 
     n->locker_can_write = locked;
 
     n->opener_q = init_coda(l, ml);
@@ -249,6 +253,7 @@ int ins_coda_stor(CodaStorage_t *q, char *pathname, bool locked, int fd, FILE *l
 
 
     LockCoda(q);
+
     if (trova_coda_stor(q, pathname) != NULL) {
 
         if (&n->filecond)  pthread_cond_destroy(&n->filecond);
@@ -271,10 +276,10 @@ int ins_coda_stor(CodaStorage_t *q, char *pathname, bool locked, int fd, FILE *l
 
     if (q->cur_numfiles == q->limit_num_files) {
 
-        if (config.v > 2) printf("\e[0;36mSERVER : Limite di files raggiunto\n\e[0m");
-          LOCK(&mlog3);
-          fprintf(fl3, "SERVER : Limite di files raggiunto\n");
-          UNLOCK(&mlog3);
+        printf("\e[0;36mSERVER : Limite di files raggiunto\n\e[0m");
+        LOCK(&mlog3);
+        fprintf(fl3, "SERVER : Limite di files raggiunto\n");
+        UNLOCK(&mlog3);
         if((poppedNode = estrai_coda_stor(q)) == NULL) {
 
             UnlockCoda(q);
@@ -348,13 +353,13 @@ int updateOpeners_coda_stor(CodaStorage_t *q, char *pathname, bool locked, int f
 
     while (item->locked && item->fd_locker != fd && status != CLOSED) {
 
-        if (config.v > 2){
+
           printf("\e[0;36mSERVER : openFile_coda_str, fd: %d, file: %s locked, aspetto...\n\e[0m", fd, pathname);
           LOCK(&mlog3);
           fprintf(fl3, "SERVER : openFile_coda_str, fd: %d, file: %s locked, aspetto...\n", fd, pathname);
           UNLOCK(&mlog3);
-        }
-        UnlockCodaEWait(q, item);
+
+          UnlockCodaEWait(q, item);
     }
     if (status == CLOSED) {
 
@@ -497,21 +502,21 @@ int readFile_coda_stor(CodaStorage_t *q, char *pathname, int fd) {
 
     if (writen(fd, item->data, res.datalen) != res.datalen) {
 
-        close(fd);
-        if (config.v > 1){
+          close(fd);
+
           printf("\e[0;36mSERVER : \e[0;31mwriten data readFile_coda_stor errore\n\e[0m");
           LOCK(&mlog3);
           fprintf(fl3, "SERVER : writen data readFile_coda_stor errore\n");
           UNLOCK(&mlog3);
-        }
-        fflush(stdout);
 
-        UnlockCoda(q);
+          fflush(stdout);
 
-        return -1;
+          UnlockCoda(q);
+
+          return -1;
     }
 
-    if (config.v > 1) printf("\e[0;36mSERVER : Lettura file %s, di lunghezza %d\n\e[0m", item->pathname, item->len);
+    printf("\e[0;36mSERVER : Lettura file %s, di lunghezza %d\n\e[0m", item->pathname, item->len);
     LOCK(&mlog3);
     fprintf(fl3, "SERVER : Lettura file %s, di lunghezza %d\n", item->pathname, item->len);
     UNLOCK(&mlog3);
@@ -538,12 +543,12 @@ int readNFiles_coda_stor(CodaStorage_t *q, char *pathname, int fd, int n) {
     if (q->cur_numfiles < n || n <= 0) res.datalen = q->cur_numfiles;
     else res.datalen = n;
 
-    if (config.v > 1){
+
       printf("\e[0;36mSERVER : Numero di files che verranno inviati: %d\n\e[0m", res.datalen);
       LOCK(&mlog3);
       fprintf(fl3, "SERVER : Numero di files che verranno inviati: %d\n", res.datalen);
       UNLOCK(&mlog3);
-    }
+
 
     if (writen(fd, &res, sizeof(res)) != sizeof(res)) {           // invio messaggio al client
 
@@ -568,6 +573,7 @@ int readNFiles_coda_stor(CodaStorage_t *q, char *pathname, int fd, int n) {
         strcpy(res.pathname, temp->pathname);
 
         if (writen(fd, &res, sizeof(res)) != sizeof(res)) {                   //invio messaggio al client
+
             close(fd);
             fprintf(stderr, "\e[0;36mSERVER : \e[0;31mwriten errore readFile_coda_stor errore\n\e[0m");
             LOCK(&mlog3);
@@ -595,7 +601,7 @@ int readNFiles_coda_stor(CodaStorage_t *q, char *pathname, int fd, int n) {
         }
 
 
-        if (config.v > 1) printf("\e[0;36mSERVER : Lettura file %s, di lunghezza %d\n\e[0m", temp->pathname, temp->len);
+        printf("\e[0;36mSERVER : Lettura file %s, di lunghezza %d\n\e[0m", temp->pathname, temp->len);
         LOCK(&mlog3);
         fprintf(fl3, "SERVER : Lettura file %s, di lunghezza %d\n", temp->pathname, temp->len);
         UNLOCK(&mlog3);
@@ -677,11 +683,11 @@ int writeFile_coda_stor(CodaStorage_t *q, char *pathname, int fd, void *buf, int
     item->len = buf_len;
     item->data = tmp;
 
-    if (config.v > 1) printf("\e[0;36mSERVER : Scritto il file %s, per una lunghezza di %d\n\e[0m", item->pathname, item->len);
+      printf("\e[0;36mSERVER : Scritto il file %s, per una lunghezza di %d\n\e[0m", item->pathname, item->len);
       LOCK(&mlog3);
       fprintf(fl3, "SERVER : Scritto il file %s, per una lunghezza di %d\n", item->pathname, item->len);
       UNLOCK(&mlog3);
-    fflush(stdout);
+      fflush(stdout);
 
     q->cur_usedstorage += item->len;
 
@@ -749,16 +755,14 @@ int appendToFile_coda_stor(CodaStorage_t *q, char *pathname, int fd, void *buf, 
 
     if (trova_coda(item->opener_q, fd) == NULL) {
 
-        if (config.v > 2){
           printf("\e[0;36mSERVER : \e[0;31mitem->opener_q == NULL ? %d\n\e[0m", (item->opener_q == NULL));
           LOCK(&mlog3);
           fprintf(fl3, "SERVER : item->opener_q == NULL ? %d\n", (item->opener_q == NULL));
           UNLOCK(&mlog3);
-        }
-        fflush(stdout);
-        UnlockCoda(q);
+          fflush(stdout);
+          UnlockCoda(q);
 
-        return EPERM;
+          return EPERM;
     }
 
 
@@ -790,7 +794,7 @@ int appendToFile_coda_stor(CodaStorage_t *q, char *pathname, int fd, void *buf, 
     item->data = tmp;
     item->len += buf_len;
 
-    if (config.v > 1) printf("\e[0;36mSERVER : Append sul file %s, lunghezza attuale di %d\n\e[0m", item->pathname, item->len);
+      printf("\e[0;36mSERVER : Append sul file %s, lunghezza attuale di %d\n\e[0m", item->pathname, item->len);
       LOCK(&mlog3);
       fprintf(fl3, "SERVER : Append sul file %s, lunghezza attuale di %d\n", item->pathname, item->len);
       UNLOCK(&mlog3);
@@ -852,12 +856,10 @@ int lockFile_coda_stor(CodaStorage_t *q, char *pathname, int fd) {
 
     while (item->locked && item->fd_locker != fd && status != CLOSED) {
 
-        if (config.v > 2){
           printf("\e[0;36mSERVER : lockFile_coda_stor, fd: %d, file: %s locked, aspetto...\n\e[0m", fd, pathname);
           LOCK(&mlog3);
           fprintf(fl3, "SERVER : lockFile_coda_stor, fd: %d, file: %s locked, aspetto...\n", fd, pathname);
           UNLOCK(&mlog3);
-        }
         UnlockCodaEWait(q, item);
     }
     if (status == CLOSED) {
@@ -989,12 +991,6 @@ int closeFile_coda_stor(CodaStorage_t *q, char *pathname, int fd) {
         return EPERM;
     } else if (esito == 1) {                                                    //è andata bene la delete (fd era l'ultimo opener)
 
-        if (config.v > 2){
-          printf("\e[0;36mSERVER : deleteNode OK (ed fd era l'ultimo opener)\n\e[0m");
-          LOCK(&mlog3);
-          fprintf(fl3, "SERVER : deleteNode OK (ed fd era l'ultimo opener)\n");
-          UNLOCK(&mlog3);
-        }
         item->opener_q = NULL;
     }
 
@@ -1205,14 +1201,6 @@ NodoStorage_t* trova_coda_stor(CodaStorage_t *q, char *pathname) {
 
     while(found == NULL && curr != NULL) {
 
-        if (config.v > 2){
-          printf("\e[0;36mSERVER : trova_coda_stor, locked: %d, fd: %d, cwrite: %d, pathname: %s\n\e[0m", curr->locked, curr->fd_locker, curr->locker_can_write, curr->pathname);
-          LOCK(&mlog3);
-          fprintf(fl3, "SERVER : trova_coda_stor, locked: %d, fd: %d, cwrite: %d, pathname: %s\n", curr->locked, curr->fd_locker, curr->locker_can_write, curr->pathname);
-          UNLOCK(&mlog3);
-        }
-        fflush(stdout);
-
         if (strcmp(curr->pathname, pathname) == 0) {
 
             found = curr;
@@ -1330,12 +1318,11 @@ int manda_client_e_free(int fd, int num_files, NodoStorage_t *poppedH) {
         return -1;
     }
 
-    if (config.v > 1){
+
       printf("\e[0;36mSERVER : Numero di files in espulsione: %d\n\e[0m", num_files);
       LOCK(&mlog3);
       fprintf(fl3, "SERVER : Numero di files in espulsione: %d\n", num_files);
       UNLOCK(&mlog3);
-    }
 
     while(poppedH != NULL) {
 
@@ -1343,7 +1330,7 @@ int manda_client_e_free(int fd, int num_files, NodoStorage_t *poppedH) {
         res.datalen = temp->len;
         strcpy(res.pathname, temp->pathname);
 
-        if (config.v > 1) printf("\e[0;36mSERVER : Espulso file %s, di lunghezza %d\n\e[0m", temp->pathname, temp->len);
+        printf("\e[0;36mSERVER : Espulso file %s, di lunghezza %d\n\e[0m", temp->pathname, temp->len);
         LOCK(&mlog3);
         fprintf(fl3, "SERVER : Espulso file %s, di lunghezza %d\n", temp->pathname, temp->len);
         UNLOCK(&mlog3);

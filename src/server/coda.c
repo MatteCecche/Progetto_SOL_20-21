@@ -8,14 +8,16 @@
 #include "../../includes/coda.h"
 #include "../../includes/config.h"
 
-extern struct config_struct config;
+// ------------------------------------------------------------------ variabili globali -------------------------------------------- //
 
+
+extern struct config_struct config;
 FILE *fl4;
 pthread_mutex_t mlog4;
 
 
 
-// --------------------------------------- funzioni di utilità ---------------------------------------- //
+// ----------------------------------------------------- funzioni di utilità ------------------------------------------------------ //
 
 
 
@@ -37,32 +39,35 @@ static inline void freeNode(Nodo_t *node){
 
 }
 
-static inline void LockQueue(Coda_t *q){
+static inline void LockCoda(Coda_t *q){
 
   LOCK(&q->qlock);
 
 }
 
-static inline void UnlockQueue(Coda_t *q){
+static inline void UnlockCoda(Coda_t *q){
 
   UNLOCK(&q->qlock);
 
 }
 
-static inline void UnlockQueueAndWait(Coda_t *q){
+static inline void UnlockCodaEAspetta(Coda_t *q){
 
   WAIT(&q->qcond, &q->qlock);
 
 }
 
-static inline void UnlockQueueAndSignal(Coda_t *q){
+static inline void UnlockCodaESignal(Coda_t *q){
 
   SIGNAL(&q->qcond);
   UNLOCK(&q->qlock);
 
 }
 
-// --------------------------------------- interfaccia della coda -------------------------------------- //
+
+// ------------------------------------------------- interfaccia della coda ---------------------------------------------------------- //
+
+
 
 Coda_t *init_coda(FILE *l, pthread_mutex_t ml) {
 
@@ -122,13 +127,17 @@ void canc_coda(Coda_t *q) {
 
 int ins_coda(Coda_t *q, int data) {
 
-    if (q == NULL) { errno= EINVAL; return -1;}
+    if (q == NULL) {
+
+      errno= EINVAL; 
+      return -1;
+    }
     Nodo_t *n = allocNodo();
     if (!n) return -1;
     n->data = data;
     n->next = NULL;
 
-    LockQueue(q);
+    LockCoda(q);
 
     if (q->qlen == 0) {
 
@@ -141,7 +150,7 @@ int ins_coda(Coda_t *q, int data) {
     }
 
     q->qlen += 1;
-    UnlockQueueAndSignal(q);
+    UnlockCodaESignal(q);
 
     return 0;
 }
@@ -156,10 +165,10 @@ int estrai_coda(Coda_t *q) {
         return -1;
     }
 
-    LockQueue(q);
+    LockCoda(q);
     while(q->qlen == 0) {
 
-      UnlockQueueAndWait(q);
+      UnlockCodaEAspetta(q);
     }
 
     Nodo_t *n  = (Nodo_t *)q->head;
@@ -167,7 +176,7 @@ int estrai_coda(Coda_t *q) {
     q->head    = q->head->next;
     q->qlen   -= 1;
 
-    UnlockQueue(q);
+    UnlockCoda(q);
     freeNode(n);
 
     return data;
@@ -183,24 +192,12 @@ Nodo_t* trova_coda(Coda_t *q, int fd) {
 
         return NULL;
     }
-    LockQueue(q);
+    LockCoda(q);
     Nodo_t *curr = q->head;
     Nodo_t *found = NULL;
 
-    if (config.v > 2){
-      printf("\e[0;36mSERVER : trova_coda fd:%d, in opener_q\n\e[0m", fd);
-      LOCK(&mlog4);
-      fprintf(fl4, "SERVER : trova_coda fd:%d, in opener_q\n", fd);
-      UNLOCK(&mlog4);
-    }
-
     while(found == NULL && curr != NULL) {
-        if (config.v > 2){
-          printf("\e[0;36mSERVER : fd: %d\n\e[0m", curr->data);
-          LOCK(&mlog4);
-          fprintf(fl4, "SERVER : fd: %d\n", curr->data);
-          UNLOCK(&mlog4);
-        }
+
 
         if (fd == curr->data) {
 
@@ -211,7 +208,7 @@ Nodo_t* trova_coda(Coda_t *q, int fd) {
         }
     }
 
-    UnlockQueue(q);
+    UnlockCoda(q);
 
     return found;
 }
@@ -226,7 +223,7 @@ int cancNodo_coda(Coda_t *q, int fd) {
         return -1;
     }
 
-    LockQueue(q);
+    LockCoda(q);
 
     Nodo_t* temp = q->head;
     Nodo_t* prev = NULL;
@@ -248,7 +245,7 @@ int cancNodo_coda(Coda_t *q, int fd) {
         } else {
 
             q->qlen -= 1;
-            UnlockQueue(q);
+            UnlockCoda(q);
         }
 
         return 0;
@@ -263,7 +260,7 @@ int cancNodo_coda(Coda_t *q, int fd) {
 
         if (temp == NULL) {                       // Se fd non era presente
 
-            UnlockQueue(q);
+            UnlockCoda(q);
 
             return 0;
         }
@@ -275,7 +272,7 @@ int cancNodo_coda(Coda_t *q, int fd) {
 
     q->qlen -= 1;
 
-    UnlockQueue(q);
+    UnlockCoda(q);
 
     return 0;
 }
@@ -284,9 +281,9 @@ int cancNodo_coda(Coda_t *q, int fd) {
 
 unsigned long lung_coda(Coda_t *q) {
 
-    LockQueue(q);
+    LockCoda(q);
     unsigned long len = q->qlen;
-    UnlockQueue(q);
+    UnlockCoda(q);
 
     return len;
 }

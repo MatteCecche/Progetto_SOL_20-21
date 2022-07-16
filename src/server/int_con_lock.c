@@ -3,6 +3,8 @@
 #include "../../includes/util.h"
 #include "../../includes/int_con_lock.h"
 
+// ------------------------------------------------------------------ variabili globali -------------------------------------------- //
+
 FILE *fl5;
 pthread_mutex_t mlog5;
 

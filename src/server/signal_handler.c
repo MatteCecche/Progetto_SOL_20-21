@@ -16,9 +16,12 @@
 #include "../../includes/config.h"
 #include "../../includes/util.h"
 
+// ------------------------------------------------------------------ variabili globali -------------------------------------------- //
+
 extern struct config_struct config;
 FILE *fl2;
 pthread_mutex_t mlog2;
+
 
 // -------------------------------------------------------------------------------------------------------------------------------------------------- //
 // Thread che gestisce i segnali (cambia lo stato del server, inoltre tramite pipe (chiudendola) sveglia il server nel caso fosse bloccato su select) //
@@ -51,7 +54,7 @@ void *SignalHandler(void *arg) {
 
         switch (sig) {
             case SIGINT:
-                if (config.v > 1) printf("\e[0;36mSERVER : SignalHandler: Ricevuto SigInt\n\e[0m");
+                  printf("\e[0;36mSERVER : SignalHandler: Ricevuto SigInt\n\e[0m");
                   LOCK(&mlog2);
                   fprintf(fl2, "SERVER : SignalHandler: Ricevuto SigInt\n");
                   UNLOCK(&mlog2);
@@ -59,14 +62,14 @@ void *SignalHandler(void *arg) {
                 *status = CLOSED;
                 break;
             case SIGQUIT:
-                if (config.v > 1) printf("\e[0;36mSERVER : SignalHandler: Ricevuto SigQuit\n\e[0m");
+                  printf("\e[0;36mSERVER : SignalHandler: Ricevuto SigQuit\n\e[0m");
                   LOCK(&mlog2);
                   fprintf(fl2, "SERVER : SignalHandler: Ricevuto SigQuit\n");
                   UNLOCK(&mlog2);
                 *status = CLOSED;
                 break;
             case SIGHUP:
-                if (config.v > 1) printf("\e[0;36mSERVER : SignalHandler: Ricevuto SigHup\n\e[0m");
+                  printf("\e[0;36mSERVER : SignalHandler: Ricevuto SigHup\n\e[0m");
                   LOCK(&mlog2);
                   fprintf(fl2, "SERVER : SignalHandler: Ricevuto SigHup\n");
                   UNLOCK(&mlog2);

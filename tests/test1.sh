@@ -1,10 +1,11 @@
 #!/bin/bash
+BIANCO="\e[0m"
 echo -e "\n\e[0;34m ---------- INIZIO TEST 1 ---------- \n\e[0m"
 
 ./client                                                          \
 -f ./mysock                                                       \
 -t 200                                                            \
--W ./Cartella/informatica.txt                                     \
+-W ./Cartella/informatica.txt O_CREATE                            \
 -t 200                                                            \
 -a ./Cartella/informatica.txt,./Cartella/informatica.txt          \
 -t 200                                                            \
@@ -38,21 +39,20 @@ echo -e "\n\e[0;34m ---------- INIZIO TEST 1 ---------- \n\e[0m"
 
 ./client -h
 
-echo "FATTO"
+echo -e "${BIANCO}FATTO${BIANCO}"
 
 
 if [ -e server.PID ]; then
-    echo "Chiusura server..."
+    echo -e "${BIANCO}Chiusura server...${BIANCO}"
 
     kill -s SIGHUP $(cat server.PID)
     rm server.PID
-    rm -f server client *.o *.a Letti/* Espulsi/* LettiFinal/*
 
-    echo "Chiuso"
+    echo -e "${BIANCO}Chiuso${BIANCO}"
 else
-  echo "Non ho trovato il pid del server"
+  echo -e "${BIANCO}Non ho trovato il pid del server${BIANCO}"
 fi
 
-sleep 3s
+sleep 2s
 
 echo -e "\n\e[0;34m ---------- TEST 1 COMPLETATO ---------- \n\e[0m"

@@ -5,7 +5,7 @@ echo -e "\n\e[0;34m ---------- INIZIO TEST 1 ---------- \n\e[0m"
 ./client                                                          \
 -f ./mysock                                                       \
 -t 200                                                            \
--W ./Cartella/informatica.txt O_CREATE                            \
+-W ./Cartella/informatica.txt                                     \
 -t 200                                                            \
 -a ./Cartella/informatica.txt,./Cartella/informatica.txt          \
 -t 200                                                            \

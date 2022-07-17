@@ -283,7 +283,6 @@ int main(int argc, char *argv[]){
                         addClient(iwl);
 
                         if (fd_c > fd_num) fd_num = fd_c;
-
                     } else if (fd == pfd_r) {                                     //aggiungo in set gli fd (se > 0) che leggo dalla pipe (con workers)
 
                         int num;

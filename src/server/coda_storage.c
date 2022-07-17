@@ -222,7 +222,7 @@ int ins_coda_stor(CodaStorage_t *q, char *pathname, bool locked, int fd, FILE *l
 
     strncpy(n->pathname, pathname, PATH_MAX);
     n->locked = locked;
-    n->fd_locker = (locked) ? fd : -1;            // se locked = fd, altrimenti -1 
+    n->fd_locker = (locked) ? fd : -1;            // se locked = fd, altrimenti -1
     n->locker_can_write = locked;
 
     n->opener_q = init_coda(l, ml);
@@ -397,7 +397,7 @@ int updateOpeners_coda_stor(CodaStorage_t *q, char *pathname, bool locked, int f
         }
         if (ins_coda(item->opener_q, fd) != 0) {
 
-            fprintf(stderr, "\e[0;36mSERVER fd : %d, \e[0;31minserisci opener_q fallita\n\e[0m", fd);
+            fprintf(stderr, "\e[0;36mSERVER fd : %d, \e[0;31minserisci ins_coda fallita\n\e[0m", fd);
             LOCK(&mlog3);
             fprintf(fl3, "SERVER fd : %d, inserisci opener_q fallita\n", fd);
             UNLOCK(&mlog3);
@@ -409,7 +409,7 @@ int updateOpeners_coda_stor(CodaStorage_t *q, char *pathname, bool locked, int f
 
         if(ins_coda(item->opener_q, fd) != 0) {
 
-            fprintf(stderr, "\e[0;36mSERVER fd : %d, \e[0;31minserisci opener_q fallita\n\e[0m", fd);
+            fprintf(stderr, "\e[0;36mSERVER fd : %d, \e[0;31minserisci ins_coda fallita\n\e[0m", fd);
             LOCK(&mlog3);
             fprintf(fl3, "SERVER fd : %d, inserisci opener_q fallita\n", fd);
             UNLOCK(&mlog3);

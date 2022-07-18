@@ -7,6 +7,7 @@
 
 #define UNIX_PATH_MAX 104
 
+
 // ------------------------------------------------------------------------ stato del server ------------------------------------------------------------------------ //
 
 typedef enum {
@@ -17,14 +18,16 @@ typedef enum {
 
 } server_status;
 
+
 // ------------------------------------ tipo di dato usato per passare gli argomenti al thread signal handler -------------------------------------------------------- //
 
 typedef struct signalThreadArgs{
 
     int pfd_w;
-    server_status *status;        // stao server
+    server_status *status;        // stato server
 
 } signalThreadArgs_t;
+
 
 // ------------------------------------ flag con cui può essere richiesta l'apertura di un file ----------------------------------------------------------------------- //
 
@@ -36,6 +39,7 @@ typedef enum {
   O_CREATE_LOCK = 3
 
 } file_flag;
+
 
 // ------------------------------------------------------------------------ tipo di operazione sul server -------------------------------------------------------------- //
 
@@ -54,6 +58,7 @@ typedef enum {
 
 } op_t;
 
+
 // ------------------------------------------------------------------------ struttura del messaggio di richiesta al server ---------------------------------------------- //
 
 typedef struct {
@@ -67,6 +72,7 @@ typedef struct {
                                                  //     - altrimenti superfluo (=0)
 } msg_richiesta_t;
 
+
 // ------------------------------------------------------------------------ struttura del messaggio di risposta dal server ---------------------------------------------- //
 
 typedef struct {
@@ -76,6 +82,7 @@ typedef struct {
     int   datalen;
 
 } msg_risposta_t;
+
 
 
 #endif

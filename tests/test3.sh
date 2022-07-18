@@ -15,7 +15,7 @@ sleep 2s
 # faccio partire gli script per generare i client
 array_id=()
 for i in {1..10}; do
-	bash -c './Scripts/startClient.sh' &
+	bash -c './Scripts/LoopClient.sh' &
 	array_id+=($!)
 	sleep 0.1
 done

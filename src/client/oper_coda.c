@@ -14,13 +14,13 @@
 
 // ----------------------------------------- funzioni di utilita' ------------------------------------------ //
 
-static inline OperNodo_t  *allocNode(){
+static inline OperNodo_t  *allocNodo(){
 
   return malloc(sizeof(OperNodo_t));
 
 }
 
-static inline OperCoda_t *allocQueue(){
+static inline OperCoda_t *allocCoda(){
 
   return malloc(sizeof(OperCoda_t));
 
@@ -37,7 +37,7 @@ static inline void freeNode(OperNodo_t *node){
 
 OperCoda_t *init_coda_oper() {
 
-    OperCoda_t *q = allocQueue();
+    OperCoda_t *q = allocCoda();
 
     if (!q) return NULL;
 
@@ -71,7 +71,7 @@ int ins_coda_oper(OperCoda_t *q, int opt, char *arg) {
         return EINVAL;
     }
 
-    OperNodo_t *n = allocNode();
+    OperNodo_t *n = allocNodo();
     if (!n) return ENOMEM;
     memset(n, '\0', sizeof(OperNodo_t));
 

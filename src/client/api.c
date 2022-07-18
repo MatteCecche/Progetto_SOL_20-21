@@ -5,7 +5,7 @@
 #include <sys/stat.h>
 #include <sys/socket.h>
 #include <fcntl.h>
-#include <sys/un.h> /* ind AF_UNIX */
+#include <sys/un.h>
 #include <time.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -47,7 +47,7 @@ int writeSocketFiles(int fd, int nfiles, char *dirname) {
 
         if (stat(dirname, &statbuf) == 0) {
 
-            if (!S_ISDIR(statbuf.st_mode)) {
+            if (!S_ISDIR(statbuf.st_mode)) {                                                                                        //controlla se e' una cartella
 
                 fprintf(stderr, "\e[0;32mCLIENT %d: \e[0;31mERRORE %s is not a directory\n\e[0m", pid, dirname);
                 dirname = NULL;
@@ -78,9 +78,9 @@ int writeSocketFiles(int fd, int nfiles, char *dirname) {
             return -1;
         }
 
-        if (res.result != 0) {
+        if (res.result != 0) {                                                  // ha sbagliato qualcosa il server
 
-            errno = EAGAIN; // ha sbagliato qualcosa il server
+            errno = EAGAIN;
 
             return -1;
         }
@@ -96,11 +96,11 @@ int writeSocketFiles(int fd, int nfiles, char *dirname) {
         if (p) printf("\e[0;32mCLIENT %d: Nella cartella %s, e' salvato il file %s di len %d\n\e[0m", pid, dirname, res.pathname, res.datalen);
         fflush(stdout);
 
-        if (dirname != NULL && dirname[0] != '\0') {                                                            //dirname è una directory valida (controllato all'inizio della funzione)
+        if (dirname != NULL && dirname[0] != '\0') {                                                            //dirname è una cartella valida (controllato all'inizio della funzione)
 
-            if (createWriteInDir(res.pathname, buffer, res.datalen, dirname) != 0) {                            // creare e scrivere file nella directory
+            if (createWriteInDir(res.pathname, buffer, res.datalen, dirname) != 0) {                            // creare e scrivere file nella cartella
 
-                free(buffer);                                                                                   //errno dovrebbe settarlo creareWriteInDir
+                free(buffer);                                                                                   //errno dovrebbe settarlo creareWriteInDi
 
                 return -1;
             }
@@ -225,12 +225,12 @@ int openFile(const char* pathname, int flags, const char* dirname) {
         return -1;
     }
 
-    int nfiles = res->datalen;                                                 //numero di files eliminati
+    int nfiles = res->datalen;                                                                            //numero di files eliminati
     if (nfiles > 1 || (nfiles != 0 && (req->flag != O_CREATE_LOCK && req->flag != O_CREATE))) {
 
         free(res);
         free(req);
-        errno = EAGAIN;                                                       //ha sbagliato qualcosa il server
+        errno = EAGAIN;                                                                                   //ha sbagliato qualcosa il server
 
         return -1;
     }
@@ -357,7 +357,7 @@ int readNFiles(int N, const char* dirname) {
         return -1;
     }
 
-    int nfiles = res->datalen; //numero di files letti
+    int nfiles = res->datalen;                                          //numero di files letti
 
     free(res);
 
@@ -398,8 +398,8 @@ int writeFile(const char* pathname, const char* dirname) {
 
     if (file != NULL) {
 
-        fseek(file, 0L, SEEK_END);          // Scopriamo la dimensione del file
-        file_size = ftell(file);
+        fseek(file, 0L, SEEK_END);              // Scopriamo la dimensione del file
+        file_size = ftell(file);                // restituisce la posizione corrente del file pointer rispetto all’inizio del file
         rewind(file);
 
         file_out = (void *)malloc(file_size);
@@ -505,7 +505,7 @@ int appendToFile(const char* pathname, void* buf, size_t size, const char* dirna
 
     req->op = APPENDTOFILE;
     strncpy(req->pathname, abspathname, strlen(abspathname)+1);
-    req->flag = O_NULL;                                         //superfluo
+    req->flag = O_NULL;                                                 //superfluo
     req->datalen = size;
 
     if (writen(csfd, req, sizeof(msg_richiesta_t)) != sizeof(msg_richiesta_t)) {

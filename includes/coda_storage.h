@@ -20,7 +20,7 @@ typedef struct StorageNode {
     bool                locker_can_write;         // true se l'ultima operazione fatta dal locker è una open con create_lock
     Coda_t              *opener_q;                // coda dei client (fd) che hanno aperto il file
     pthread_cond_t      filecond;                 // locked && fd_locker != fd
-	  struct StorageNode* next;
+	  struct StorageNode  *next;
 
 } NodoStorage_t;
 
@@ -29,8 +29,8 @@ typedef struct StorageNode {
 
 typedef struct StorageQueue {
 
-    NodoStorage_t*      head;                     // elemento di testa
-    NodoStorage_t*      tail;                     // elemento di coda
+    NodoStorage_t       *head;                    // elemento di testa
+    NodoStorage_t       *tail;                    // elemento di coda
     int                 cur_numfiles;             // lunghezza ovvero numero di files in storage
     unsigned long       cur_usedstorage;          // dimensione storage attuale in bytes
     int                 max_num_files; 			      // numero massimo raggiunto di file memorizzati nel server
@@ -44,7 +44,7 @@ typedef struct StorageQueue {
 
 
 // ---------------------------------------------------------------- //
-// Alloca ed inizializza una coda. Deve essere chiamata da un solo  //
+//  Alloca ed inizializza una coda. Deve essere chiamata da un solo //
 //  thread (tipicamente il thread main).                            //
 // ---------------------------------------------------------------- //
 
@@ -57,6 +57,7 @@ CodaStorage_t *init_coda_stor(int limit_num_files, unsigned long storage_capacit
 
 void broadcast_coda_stor(CodaStorage_t *q);
 
+
 // -------------------------------------------------------------- //
 // Cancella una coda allocata con initCoda. Deve essere chiamata  //
 // da un solo thread (tipicamente il thread main).                //
@@ -68,7 +69,7 @@ void canc_coda_stor(CodaStorage_t *q);
 // ------------------------------------------------------------------------------ //
 // Inserisce un nuovo nodo (file identificato da pathname) nella coda             //
 // (inizializzando correttamente i vari campi), ed in caso di successo comunica   //
-//  al client sul socket fd_locker                                                //
+// al client sul socket fd_locker                                                 //
 // ------------------------------------------------------------------------------ //
 
 int ins_coda_stor(CodaStorage_t *q, char *pathname, bool locked, int fd_locker, FILE *l, pthread_mutex_t ml);
@@ -90,6 +91,7 @@ int updateOpeners_coda_stor(CodaStorage_t *q, char *pathname, bool locked, int f
 // ---------------------------------------------------------------------------- //
 
 int readFile_coda_stor(CodaStorage_t *q, char *pathname, int fd);
+
 
 // ------------------------------------------------------------------------------ //
 //  Comunica al client (sul socket fd_locker), i files contenuti nella coda, fino //
@@ -131,8 +133,9 @@ int lockFile_coda_stor(CodaStorage_t *q, char *pathname, int fd);
 
 int unlockFile_coda_stor(CodaStorage_t *q, char *pathname, int fd);
 
+
 // ---------------------------------------------------------------------------------------------- //
-//  Client fd chiude il file identificato da pathname (si aggiorna opener_q), se lo aveva aperto, //
+//  Client fd chiude il file identificato da pathname (si aggiorna opencoda), se lo aveva aperto, //
 //  in caso di successo comunica al client sul socket fd                                          //
 // ---------------------------------------------------------------------------------------------- //
 
@@ -141,7 +144,7 @@ int closeFile_coda_stor(CodaStorage_t *q, char *pathname, int fd);
 
 
 // ---------------------------------------------------------------- //
-//  Chiude (aggiornando i loro opener_q) tutti i file aperti da fd, //
+//  Chiude (aggiornando i loro opencoda) tutti i file aperti da fd, //
 //  in caso di successo comunica al client sul socket fd            //
 // ---------------------------------------------------------------- //
 
@@ -155,16 +158,20 @@ int closeFdFiles_coda_stor(CodaStorage_t *q, int fd);
 
 int removeFile_coda_stor(CodaStorage_t *q, char *pathname, int fd);
 
+
 // ---------------------------------------------- //
 // Stampa la lista dei file contenuti nella coda  //
 // ---------------------------------------------- //
 
 void printListFiles_coda_stor(CodaStorage_t *q);
 
+
 // ---------------------------------------------------------------  //
 // Ritorna la lunghezza attuale della coda passata come parametro.  //
 // ---------------------------------------------------------------- //
 
 unsigned long lung_coda_stor(CodaStorage_t *q);
+
+
 
 #endif

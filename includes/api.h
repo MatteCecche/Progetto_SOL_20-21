@@ -9,17 +9,20 @@
 
 int openConnection(const char* sockname, int msec, const struct timespec abstime);
 
+
 // ----------------------------------------------------------------- //
 // Chiude la connessione AF_UNIX associata al socket file sockname   //
 // ----------------------------------------------------------------- //
 
 int closeConnection(const char* sockname);
 
+
 // ---------------------------------------------------------------------------------------- //
 // Richiesta di apertura o creazione del file identificato da pathname (con o senza lock)   //
 // ---------------------------------------------------------------------------------------- //
 
 int openFile(const char* pathname, int flags, const char* dirname);
+
 
 // ---------------------------------------------------------------------------------- //
 // Legge tutto il contenuto del file dal server (se esiste) ritornando un puntatore   //
@@ -28,6 +31,7 @@ int openFile(const char* pathname, int flags, const char* dirname);
 // ---------------------------------------------------------------------------------- //
 
 int readFile(const char* pathname, void** buf, size_t* size);
+
 
 // ---------------------------------------------------------------------------------- //
 // Richiede al server la lettura di ‘N’ files qualsiasi da memorizzare nella          //
@@ -38,15 +42,17 @@ int readFile(const char* pathname, void** buf, size_t* size);
 
 int readNFiles(int N, const char* dirname);
 
+
 // ------------------------------------------------------------------------------------ //
 //  Scrive tutto il file puntato da pathname nel file del server                        //
 //  Ritorna successo solo se la precedente operazione, terminata con successo,          //
-//  è stata openFile(pathname, O_LOCK). Se ‘dirname’ è diverso da NULL,                 //
+//  è stata openFile(pathname, O_CREATE_LOCK). Se ‘dirname’ è diverso da NULL,          //
 //  i file eventualmente spediti dal server perchè espulsi dalla cache per far posto    //
 //  al file ‘pathname’ dovranno essere scritti in ‘dirname’                             //
 // ------------------------------------------------------------------------------------ //
 
 int writeFile(const char* pathname, const char* dirname);
+
 
 // ------------------------------------------------------------------------------------------------ //
 //  Richiesta di scrivere in append al file ‘pathname‘ i ‘size‘ bytes contenuti nel buffer ‘buf’    //
@@ -55,6 +61,7 @@ int writeFile(const char* pathname, const char* dirname);
 // ------------------------------------------------------------------------------------------------ //
 
 int appendToFile(const char* pathname, void* buf, size_t size, const char* dirname);
+
 
 // ---------------------------------------------------------------------------------------------- //
 //  Setta il flag O_LOCK al file. Se il file era stato aperto/creato con il flag O_LOCK e la      //
@@ -65,6 +72,7 @@ int appendToFile(const char* pathname, void* buf, size_t size, const char* dirna
 
 int lockFile(const char* pathname);
 
+
 // -------------------------------------------------------------------------------- //
 //  Resetta il flag O_LOCK sul file ‘pathname’. L’operazione ha successo solo se    //
 //  l’owner della lock è il processo che ha richiesto l’operazione, altrimenti      //
@@ -73,12 +81,14 @@ int lockFile(const char* pathname);
 
 int unlockFile(const char* pathname);
 
+
 // ------------------------------------------------------------------ //
 //  Richiesta di chiusura del file puntato da ‘pathname’              //
 //  (Eventuali operazioni sul file dopo la closeFile falliscono)      //
 // ------------------------------------------------------------------ //
 
 int closeFile(const char* pathname);
+
 
 // ------------------------------------------------------------------------------------- //
 //  Rimuove il file cancellandolo dal file storage server.                               //
@@ -88,9 +98,6 @@ int closeFile(const char* pathname);
 
 int removeFile(const char* pathname);
 
-// ---------------------------------------------------------------------------- //
-// Legge dal socket 'fd' 'nfiles' files e li scrive in dirname(se != NULL)      //
-// ---------------------------------------------------------------------------- //
 
 
 #endif

@@ -1,7 +1,5 @@
-
 #if !defined(_UTIL_H)
 #define _UTIL_H
-
 
 #include <stdarg.h>
 #include <sys/types.h>
@@ -126,7 +124,6 @@ static inline int isNumber(const char* s, long* n) {
     pthread_exit((void*)EXIT_FAILURE);				    \
 }
 
-// ATTENZIONE: t e' un tempo assoluto! //
 
 #define TWAIT(c,l,t) {							\
     int r=0;								\
@@ -152,4 +149,4 @@ static inline int TRYLOCK(pthread_mutex_t* l) {
   return r;
 }
 
-#endif 
+#endif

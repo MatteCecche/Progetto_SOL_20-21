@@ -14,15 +14,16 @@
 
 typedef struct Opt {
 
-    input_opt   opt;                          // enum operazione
-    char        f[PATH_MAX];                            // enum open
-    char        arg[PATH_MAX];                // argomento operazione
-    char        dirname[PATH_MAX];            // eventuale directory per opt. di read/write/append
-    struct Opt  *next;
+    input_opt     opt;                          // enum operazione
+    char          f[PATH_MAX];                  // flag open
+    char          arg[PATH_MAX];                // argomento operazione
+    char          dirname[PATH_MAX];            // eventuale directory per opt. di read/write/append
+    struct Opt    *next;
 
 } OperNodo_t;
 
-// ------------------------------------------------------ Struttura dati coda delle operazioni ------------------------------------------------------//
+
+// ------------------------------------------------------ Struttura dati coda delle operazioni ----------------------------------------------------- //
 
 typedef struct OperCoda {
 
@@ -33,9 +34,9 @@ typedef struct OperCoda {
 } OperCoda_t;
 
 
-// ------------------------------------------------------------ //
-// Tutte le operazioni devono essere chiamate da un solo thread //
-// ------------------------------------------------------------ //
+
+// ---------------------------------------- Tutte le operazioni devono essere chiamate da un solo thread ------------------------------------------ //
+
 
 // ------------------------------ //
 // Alloca ed inizializza una coda //
@@ -43,11 +44,13 @@ typedef struct OperCoda {
 
 OperCoda_t *init_coda_oper();
 
+
 // --------------------------------------------- //
 // Cancella una coda allocata con init_coda_oper //
 // --------------------------------------------- //
 
 void canc_coda_oper(OperCoda_t *q);
+
 
 // ----------------------------------------------- //
 // Inserisce un nuovo nodo (operazione) nella coda //
@@ -55,11 +58,13 @@ void canc_coda_oper(OperCoda_t *q);
 
 int ins_coda_oper(OperCoda_t *q, int opt, char *arg);
 
+
 // ------------------------------------------------------------------------------------------------------- //
 // Setta q->dirname =  dirname, se l'operazione contenuta nella tail della coda è WRITEDIRNAME o WRITELIST //
 // ------------------------------------------------------------------------------------------------------- //
 
 int setWDirname_coda_oper(OperCoda_t *q, char *dirname);
+
 
 // ----------------------------------------------------------------------------------------------- //
 // Setta q->dirname =  dirname, se l'operazione contenuta nella tail della coda è READLIST o READN //
@@ -67,11 +72,13 @@ int setWDirname_coda_oper(OperCoda_t *q, char *dirname);
 
 int setRDirname_coda_oper(OperCoda_t *q, char *dirname);
 
+
 // ------------------------------------------------------------------------------------- //
 // Setta q->dirname =  dirname, se l'operazione contenuta nella tail della coda è APPEND //
 // ------------------------------------------------------------------------------------- //
 
 int setADirname_coda_oper(OperCoda_t *q, char *dirname);
+
 
 
 #endif

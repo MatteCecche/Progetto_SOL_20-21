@@ -69,12 +69,14 @@ static inline void UnlockCodaESignal(CodaStorage_t *q, NodoStorage_t *node){
 
 }
 
+
 // ---------------------------------------------- //
 //  Restituisce il nodo identificato da pathname  //
 //  (da chiamare con lock)                        //
 // ---------------------------------------------- //
 
 NodoStorage_t* trova_coda_stor(CodaStorage_t *q, char *pathname);
+
 
 // ---------------------------------------------------------------------------------------------------------- //
 //  Estrae dalla coda q un numero di files adeguato per permettere l'inserimento di un file di buf_len bytes, //
@@ -84,12 +86,14 @@ NodoStorage_t* trova_coda_stor(CodaStorage_t *q, char *pathname);
 
 int estraiUntil_coda_stor(CodaStorage_t *q, int buf_len, int *num_poppedFiles, NodoStorage_t **poppedHead);
 
+
 // ------------------------------------ //
 //  Estrae dalla coda q un nodo (file)  //
 //  (da chiamare con lock)              //
 // ------------------------------------ //
 
 NodoStorage_t *estrai_coda_stor(CodaStorage_t *q);
+
 
 // ----------------------------------------------------------------------------------- //
 // Comunica al client sul socket fd, i files della coda poppedH, e libera memoria      //
@@ -102,6 +106,7 @@ int manda_client_e_free(int fd, int num_files, NodoStorage_t *poppedH);
 
 
 // --------------------------------------- interfaccia della coda ------------------------------------------- //
+
 
 CodaStorage_t *init_coda_stor(int limit_num_files, unsigned long storage_capacity, FILE *l, pthread_mutex_t ml) {
 
@@ -789,7 +794,7 @@ int appendToFile_coda_stor(CodaStorage_t *q, char *pathname, int fd, void *buf, 
         return ENOMEM;
     }
 
-    memcpy(&tmp[item->len], buf, buf_len);
+    memcpy(&tmp[item->len], buf, buf_len);              // copia caratteri
 
     item->data = tmp;
     item->len += buf_len;

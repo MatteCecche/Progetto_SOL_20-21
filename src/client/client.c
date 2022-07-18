@@ -26,7 +26,7 @@
 // -------------------------------------------------------------------- variabili globali -------------------------------------------------------------------- //
 
 char sockname[N];
-int time_ms = 0;                        //tempo in millisecondi tra l'invio di due richieste successive al server
+int time_ms = 0;                        // tempo in millisecondi tra l'invio di due richieste successive al server
 int cur_dirFiles_read = 0;              // per recWrite
 bool p = false;                         // opzione print
 int pid;                                // process id del client
@@ -46,6 +46,7 @@ int pid;                                // process id del client
 
 int gest_writeDirname(char *arg, char *dirname, char *t);
 
+
 // -------------------------------------------------------------------------------------------------------------- //
 //  Effettua il parsing di 'arg', ricavando la lista dei file da scrivere nel server                              //
 //  Se ‘dirname’ è diverso da NULL, i file eventualmente spediti dal server perchè espulsi dalla cache dovranno   //
@@ -54,6 +55,7 @@ int gest_writeDirname(char *arg, char *dirname, char *t);
 
 
 int gest_writeList(char *arg, char *dirname, char *t);
+
 
 // ------------------------------------------------------------------------------------------------------------ //
 //  Effettua il parsing di 'arg', ricavando il file del server a cui fare append, e il file (del file system)   //
@@ -65,6 +67,7 @@ int gest_writeList(char *arg, char *dirname, char *t);
 
 int gest_Append(char *arg, char *dirname);
 
+
 // -------------------------------------------------------------------------------- //
 //  Effettua il parsing di 'arg', ricavando la lista dei file da leggere dal server //
 //  Se ‘dirname’ è diverso da NULL, i file letti dal server dovranno                //
@@ -72,6 +75,7 @@ int gest_Append(char *arg, char *dirname);
 // -------------------------------------------------------------------------------- //
 
 int gest_readList(char *arg, char *dirname);
+
 
 // ---------------------------------------------------------------------------- //
 //  Effettua il parsing di 'arg', ricavando il numero di file da leggere        //
@@ -82,12 +86,14 @@ int gest_readList(char *arg, char *dirname);
 
 int gest_readN(char *arg, char *dirname);
 
+
 // ---------------------------------------------------------------------------- //
 //  Effettua il parsing di 'arg', ricavando la lista dei file su cui acquisire  //
 //  la mutua esclusione                                                         //
 // ---------------------------------------------------------------------------- //
 
 int gest_lockList(char *arg);
+
 
 // ------------------------------------------------------------------------------ //
 //  Effettua il parsing di 'arg', ricavando la lista dei file  su cui rilasciare  //
@@ -96,12 +102,14 @@ int gest_lockList(char *arg);
 
 int gest_unlockList(char *arg);
 
+
 // ------------------------------------------------------------------------ //
 //  Effettua il parsing di 'arg', ricavando la lista dei file da rimuovere  //
 //  dal server se presenti                                                  //
 // ------------------------------------------------------------------------ //
 
 int gest_removeList(char *arg);
+
 
 // ---------------------------- //
 // Stampa le opzione possibili  //
@@ -132,7 +140,7 @@ int main(int argc, char *argv[]) {
     OperCoda_t *q = init_coda_oper();
     if (!q){
 
-        fprintf(stderr, "\e[0;32mCLIENT %d: \e[0;31mERRORE initQueue fallita\n\e[0m", pid);
+        fprintf(stderr, "\e[0;32mCLIENT %d: \e[0;31mERRORE init_Coda fallita\n\e[0m", pid);
 
         return -1;
     }
@@ -334,6 +342,7 @@ int isdot(const char dir[]) {
 
 }
 
+
 // ------------------------------------------------------------------------------------------------------------ //
 //  Visita 'readfrom_dir' ricorsivamente fino a quando non si leggono ‘n‘ file; se n=0 non c’è un limite        //
 //  superiore al numero di file da inviare al server (tuttavia non è detto che il server possa scriverli tutti) //
@@ -341,12 +350,11 @@ int isdot(const char dir[]) {
 //  essere scritti in ‘del_dir’                                                                                 //
 // ------------------------------------------------------------------------------------------------------------ //
 
-
 int recWrite(char *readfrom_dir, char *del_dir, long n, char *t) {
 
     struct stat statbuf;
 
-    if (stat(readfrom_dir, &statbuf) != 0) {
+    if (stat(readfrom_dir, &statbuf) != 0) {              // ritorna le informazioni sul file specificato da filename
 
         fprintf(stderr, "\e[0;32mCLIENT %d: \e[0;31mERRORE writeDirname stat %s, ERRORE %s\n\e[0m", pid, readfrom_dir, strerror(errno));
 
@@ -361,7 +369,7 @@ int recWrite(char *readfrom_dir, char *del_dir, long n, char *t) {
     }
 
     DIR * dir;
-    if ((dir = opendir(readfrom_dir)) == NULL) {
+    if ((dir = opendir(readfrom_dir)) == NULL) {            // apre la cartella e ritorna un puntatore allo stream della cartella
 
         fprintf(stderr, "\e[0;32mCLIENT %d: \e[0;31mERRORE writeDirname opendir %s, ERRORE %s\n\e[0m", pid, readfrom_dir, strerror(errno));
 
@@ -370,7 +378,7 @@ int recWrite(char *readfrom_dir, char *del_dir, long n, char *t) {
 
         struct dirent *file;
 
-        while((errno = 0, file = readdir(dir)) != NULL && (cur_dirFiles_read < n || n == 0)) {
+        while((errno = 0, file = readdir(dir)) != NULL && (cur_dirFiles_read < n || n == 0)) {          // ritorna un puntatore alla struttura dirent che rappresenta l'entry della cartella
 
           if (isdot(file->d_name)) continue;
 

@@ -3,20 +3,20 @@
 echo -e "\n\e[0;34m ---------- INIZIO TEST 2 ---------- \n\e[0m"
 
 ./client  -f ./mysock                                                           \
--W ./Files/cane.jpg,./Files/mare.jpg                                         \
+-W ./Files/cane.jpg,./Files/mare.jpg                                            \
 -D ./Espulsi                                                                    \
 -p                                                                              \
 &
 
 ./client -f ./mysock                                                            \
--w ./Cartella/SubCartella@O_CREATE                                     \
+-w ./Cartella/SubCartella@O_CREATE                                              \
 -D ./Espulsi                                                                    \
 -p                                                                              \
 &
 
 
 ./client  -f ./mysock                                                           \
--w ./Files/Imm@O_CREATE_LOCK                                                                 \
+-w ./Files/Imm@O_CREATE_LOCK                                                    \
 -D ./Espulsi                                                                    \
 -W ./Cartella/SubCartella/capre.txt,./Cartella/SubCartella/rubinetto.txt        \
 -D ./Espulsi                                                                    \
@@ -28,7 +28,7 @@ if [ -e server.PID ]; then
 
     kill -s SIGHUP $(cat server.PID)
     rm server.PID
-    #rm -f server client *.o *.a Letti/* Espulsi/* LettiFinal/*
+
     echo -e "${BIANCO} Chiuso${BIANCO}"
 else
   echo -e "${BIANCO}Non ho trovato il pid del server${BIANCO}"

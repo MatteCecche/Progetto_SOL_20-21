@@ -29,8 +29,8 @@
 
 typedef struct threadArgs {
 
-    int pfd;
-    int thid;
+    int pfd;                    // fd lettura pipe
+    int thid;                   // id del thread worker
     Coda_t *q;
     IntConLock_t *iwl;          // numero client attivi
 

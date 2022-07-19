@@ -57,15 +57,16 @@ static inline void UnlockCoda(CodaStorage_t *q){
 
 }
 
-static inline void UnlockCodaEWait(CodaStorage_t *q, NodoStorage_t *node){
+static inline void WaitCoda(CodaStorage_t *q, NodoStorage_t *node){
 
   WAIT(&node->filecond, &q->qlock);
 
 }
 
-static inline void UnlockCodaESignal(CodaStorage_t *q, NodoStorage_t *node){
+static inline void SignalEUnlock(CodaStorage_t *q, NodoStorage_t *node){
 
-  SIGNAL(&node->filecond); UNLOCK(&q->qlock);
+  SIGNAL(&node->filecond);
+  UNLOCK(&q->qlock);
 
 }
 
@@ -203,10 +204,10 @@ int ins_coda_stor(CodaStorage_t *q, char *pathname, bool locked, int fd, FILE *l
     }
 
 
-      printf("\e[0;36mSERVER : ins_coda_stor, fd: %d, pathname: %s\n\e[0m", fd, pathname);
-      LOCK(&mlog3);
-      fprintf(fl3, "SERVER : ins_coda_stor, fd: %d, pathname: %s\n", fd, pathname);
-      UNLOCK(&mlog3);
+    printf("\e[0;36mSERVER : ins_coda_stor, fd: %d, pathname: %s\n\e[0m", fd, pathname);
+    LOCK(&mlog3);
+    fprintf(fl3, "SERVER : ins_coda_stor, fd: %d, pathname: %s\n", fd, pathname);
+    UNLOCK(&mlog3);
 
     fflush(stdout);
 
@@ -364,7 +365,7 @@ int updateOpeners_coda_stor(CodaStorage_t *q, char *pathname, bool locked, int f
           fprintf(fl3, "SERVER : openFile_coda_str, fd: %d, file: %s locked, aspetto...\n", fd, pathname);
           UNLOCK(&mlog3);
 
-          UnlockCodaEWait(q, item);
+          WaitCoda(q, item);
     }
     if (status == CLOSED) {
 
@@ -865,7 +866,7 @@ int lockFile_coda_stor(CodaStorage_t *q, char *pathname, int fd) {
           LOCK(&mlog3);
           fprintf(fl3, "SERVER : lockFile_coda_stor, fd: %d, file: %s locked, aspetto...\n", fd, pathname);
           UNLOCK(&mlog3);
-        UnlockCodaEWait(q, item);
+        WaitCoda(q, item);
     }
     if (status == CLOSED) {
 
@@ -944,7 +945,7 @@ int unlockFile_coda_stor(CodaStorage_t *q, char *pathname, int fd) {
     item->fd_locker = -1;
     item->locker_can_write = false;
 
-    UnlockCodaESignal(q, item);
+    SignalEUnlock(q, item);
 
     msg_risposta_t res;
     memset(&res, '\0', sizeof(msg_risposta_t));

@@ -56,28 +56,28 @@ void canc_coda_oper(OperCoda_t *q);
 // Inserisce un nuovo nodo (operazione) nella coda //
 // ----------------------------------------------- //
 
-int ins_coda_oper(OperCoda_t *q, int opt, char *arg);
+void ins_coda_oper(OperCoda_t *q, int opt, char *arg);
 
 
 // ------------------------------------------------------------------------------------------------------- //
 // Setta q->dirname =  dirname, se l'operazione contenuta nella tail della coda è WRITEDIRNAME o WRITELIST //
 // ------------------------------------------------------------------------------------------------------- //
 
-int setWDirname_coda_oper(OperCoda_t *q, char *dirname);
+void setWDirname_coda_oper(OperCoda_t *q, char *dirname);
 
 
 // ----------------------------------------------------------------------------------------------- //
 // Setta q->dirname =  dirname, se l'operazione contenuta nella tail della coda è READLIST o READN //
 // ----------------------------------------------------------------------------------------------- //
 
-int setRDirname_coda_oper(OperCoda_t *q, char *dirname);
+void setRDirname_coda_oper(OperCoda_t *q, char *dirname);
 
 
 // ------------------------------------------------------------------------------------- //
 // Setta q->dirname =  dirname, se l'operazione contenuta nella tail della coda è APPEND //
 // ------------------------------------------------------------------------------------- //
 
-int setADirname_coda_oper(OperCoda_t *q, char *dirname);
+void setADirname_coda_oper(OperCoda_t *q, char *dirname);
 
 
 

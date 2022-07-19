@@ -64,7 +64,7 @@ void canc_coda_oper(OperCoda_t *q) {
 }
 
 
-int ins_coda_oper(OperCoda_t *q, int opt, char *arg) {
+void ins_coda_oper(OperCoda_t *q, int opt, char *arg) {
 
     if ((q == NULL) || (opt == -1) || arg == NULL) {
 
@@ -102,7 +102,7 @@ int ins_coda_oper(OperCoda_t *q, int opt, char *arg) {
 
 }
 
-int setRDirname_coda_oper(OperCoda_t *q, char *dirname) {
+void setRDirname_coda_oper(OperCoda_t *q, char *dirname) {
 
     if ((q == NULL) || (dirname == NULL)) {
 
@@ -119,7 +119,7 @@ int setRDirname_coda_oper(OperCoda_t *q, char *dirname) {
     return 0;
 }
 
-int setWDirname_coda_oper(OperCoda_t *q, char *dirname) {
+void setWDirname_coda_oper(OperCoda_t *q, char *dirname) {
 
     if ((q == NULL) || (dirname == NULL)) {
 
@@ -136,7 +136,7 @@ int setWDirname_coda_oper(OperCoda_t *q, char *dirname) {
     return 0;
 }
 
-int setADirname_coda_oper(OperCoda_t *q, char *dirname) {
+void setADirname_coda_oper(OperCoda_t *q, char *dirname) {
 
     if ((q == NULL) || (dirname == NULL)) {
 

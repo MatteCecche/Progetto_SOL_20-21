@@ -437,7 +437,7 @@ int requestHandler (int myid, int fd, msg_richiesta_t req) {
 
         case OPENFILE: {
           if (req.flag == O_CREATE) {
-            res.result = updateOpeners_coda_stor(storage_q, req.pathname, false, fd, fl, mlog);
+
             res.result = ins_coda_stor(storage_q, req.pathname, true, fd, fl, mlog);
             printf("\e[0;36mSERVER : l'operazione >Openfile_O_CREATE< di %s, fd: %d, e' stata eseguita con esito: %s\n\e[0m", req.pathname, fd, myStrerror(res.result));
             LOCK(&mlog);

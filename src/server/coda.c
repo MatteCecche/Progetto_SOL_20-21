@@ -51,13 +51,13 @@ static inline void UnlockCoda(Coda_t *q){
 
 }
 
-static inline void UnlockCodaEAspetta(Coda_t *q){
+static inline void WaitCoda(Coda_t *q){
 
   WAIT(&q->qcond, &q->qlock);
 
 }
 
-static inline void UnlockCodaESignal(Coda_t *q){
+static inline void SignalEUnlock(Coda_t *q){
 
   SIGNAL(&q->qcond);
   UNLOCK(&q->qlock);
@@ -129,7 +129,7 @@ int ins_coda(Coda_t *q, int data) {
 
     if (q == NULL) {
 
-      errno= EINVAL; 
+      errno= EINVAL;
       return -1;
     }
     Nodo_t *n = allocNodo();
@@ -150,7 +150,7 @@ int ins_coda(Coda_t *q, int data) {
     }
 
     q->qlen += 1;
-    UnlockCodaESignal(q);
+    SignalEUnlock(q);
 
     return 0;
 }
@@ -168,7 +168,7 @@ int estrai_coda(Coda_t *q) {
     LockCoda(q);
     while(q->qlen == 0) {
 
-      UnlockCodaEAspetta(q);
+      WaitCoda(q);
     }
 
     Nodo_t *n  = (Nodo_t *)q->head;

@@ -1,6 +1,6 @@
 #!/bin/bash
 BIANCO="\e[0m"
-echo -e "\n\e[0;34m ---------- INIZIO TEST 1 ---------- \n\e[0m"
+echo -e "\n\e[0m ---------- INIZIO TEST 1 ---------- \n\e[0m"
 
 ./client                                                          \
 -f ./mysock                                                       \
@@ -54,4 +54,4 @@ fi
 
 sleep 2s
 
-echo -e "\n\e[0;34m ---------- TEST 1 COMPLETATO ---------- \n\e[0m"
+echo -e "\n\e[0m ---------- TEST 1 COMPLETATO ---------- \n\e[0m"

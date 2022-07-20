@@ -1,5 +1,5 @@
 #!/bin/bash
-echo -e "\n\e[0;34m ---------- INIZIO TEST 3 ---------- \n\e[0m"
+echo -e "\n\e[0m ---------- INIZIO TEST 3 ---------- \n\e[0m"
 
 ./server -c ./Config/test3.conf &
 # server pid
@@ -33,4 +33,4 @@ sleep 2s
 
 wait $SERVER_PID
 killall -q ./client #chiudo eventuali processi rimasti
-echo -e "\n\e[0;34m ---------- TEST 3 COMPLETATO ---------- \n\e[0m"
+echo -e "\n\e[0m ---------- TEST 3 COMPLETATO ---------- \n\e[0m"

@@ -19,7 +19,7 @@ echo -e "\n\e[0;34m ---------- INIZIO TEST 1 ---------- \n\e[0m"
 -t 200                                                            \
 -D ./Espulsi                                                      \
 -t 200                                                            \
--W ./Cartella/SubCartella/capre.txt@O_CREATE                      \
+-W ./Cartella/SubCartella/capre.txt                               \
 -t 200                                                            \
 -R 1                                                              \
 -t 200                                                            \

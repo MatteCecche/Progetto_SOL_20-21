@@ -19,11 +19,13 @@ if [[ ${n_reads} > 0 ]]; then
     echo -e "${BIANCO}Size media delle letture in bytes:${VERDE} 0 ${BIANCO}"
 fi
 n_writes=$(grep "Scritto" -c $LOG_FILE)
+n_append=$(grep "Append sul file " -c $LOG_FILE)
+tot_writes=$(( ${n_writes} + ${n_append} ))
 tot_bytes_writes=$(grep "Scritto " ${LOG_FILE} | grep -Eo "[0-9]+" | { sum=0; while read num; do ((sum+=num)); done; echo $sum; } )
-tot_bytes_append=$(grep "Append " ${LOG_FILE} | grep -Eo "[0-9]+" | { sum=0; while read num; do ((sum+=num)); done; echo $sum; } )
-echo -e "${BIANCO}Numero di writeFile: ${VERDE}${n_writes}${BIANCO}"
-if [[ ${n_writes} > 0 ]]; then
-    media_bytes_writes=$(echo "scale=4;( ${tot_bytes_writes} + ${tot_bytes_append} ) / ${n_writes}" | bc -l)
+tot_bytes_append=$(grep "Append sul file " ${LOG_FILE} | grep -Eo "[0-9]+" | { sum=0; while read num; do ((sum+=num)); done; echo $sum; } )
+echo -e "${BIANCO}Numero di writeFile: ${VERDE} ${tot_writes} ${BIANCO}"
+if [[ ${tot_writes} > 0 ]]; then
+    media_bytes_writes=$(echo "scale=4;( ${tot_bytes_writes} + ${tot_bytes_append} ) / ${tot_writes}" | bc -l)
     echo -e "${BIANCO}Size media della scrittura in bytes: ${VERDE}${media_bytes_writes}${BIANCO}"
   else
     echo -e "${BIANCO}Size media della scrittura in bytes:${VERDE} 0 ${BIANCO}"

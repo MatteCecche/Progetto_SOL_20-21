@@ -27,6 +27,7 @@ for i in "${array_id[@]}"; do
 	wait "${i}" 2>/dev/null
 done
 
+sleep 2s
 kill -s SIGINT ${SERVER_PID}
 sleep 2s
 

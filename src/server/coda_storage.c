@@ -759,18 +759,6 @@ int appendToFile_coda_stor(CodaStorage_t *q, char *pathname, int fd, void *buf, 
         return ENOENT;
     }
 
-    if (trova_coda(item->opener_q, fd) == NULL) {
-
-          printf("\e[0;36mSERVER : \e[0;31mitem->opener_q == NULL ? %d\n\e[0m", (item->opener_q == NULL));
-          LOCK(&mlog3);
-          fprintf(fl3, "SERVER : item->opener_q == NULL ? %d\n", (item->opener_q == NULL));
-          UNLOCK(&mlog3);
-          fflush(stdout);
-          UnlockCoda(q);
-
-          return EPERM;
-    }
-
 
     NodoStorage_t *poppedHead = NULL;
     int num_poppedFiles = 0;

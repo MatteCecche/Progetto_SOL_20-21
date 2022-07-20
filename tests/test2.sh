@@ -9,7 +9,7 @@ echo -e "\n\e[0;34m ---------- INIZIO TEST 2 ---------- \n\e[0m"
 &
 
 ./client -f ./mysock                                                            \
--w ./Cartella/SubCartella@O_CREATE                                              \
+-w ./Cartella/SubCartella                                                       \
 -D ./Espulsi                                                                    \
 -p                                                                              \
 &

@@ -7,7 +7,7 @@ BLU="\e[0;34m"
 BIANCO="\e[0m"
 BYTES=1024
 
-echo -e "\n${BLU}# ---------------- Statistiche operazioni effettuate ---------------- #\n${BIANCO}"
+echo -e "\n${BIANCO}# ---------------- Statistiche operazioni effettuate ---------------- #\n${BIANCO}"
 
 n_reads=$(grep " Lettura " -c $LOG_FILE)
 tot_bytes_read=$(grep "Lettura " ${LOG_FILE} | grep -Eo "[0-9]+" | { sum=0; while read num; do ((sum+=num)); done; echo $sum; } )
@@ -59,4 +59,4 @@ max_conn=$(grep -Eo "Worker [0-9]+" ${LOG_FILE} | grep -Eo "[0-9]+" | { max=0; w
 echo -e "${BIANCO}Massimo n. di connessioni contemporanee : ${VERDE}${max_conn}${BIANCO}"
 
 
-echo -e "\n${BLU}# -------------------------------------------------------------------- #\n${BIANCO}"
+echo -e "\n${BIANCO}# -------------------------------------------------------------------- #\n${BIANCO}"

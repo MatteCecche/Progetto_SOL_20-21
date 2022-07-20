@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo -e "\n\e[0;34m ---------- INIZIO TEST 2 ---------- \n\e[0m"
+echo -e "\n\e[0m ---------- INIZIO TEST 2 ---------- \n\e[0m"
 
 ./client  -f ./mysock                                                           \
 -W ./Files/cane.jpg,./Files/mare.jpg                                            \
@@ -36,4 +36,4 @@ fi
 
 sleep 2s
 
-echo -e "\n\e[0;34m ---------- TEST 2 COMPLETATO ---------- \n\e[0m"
+echo -e "\n\e[0m ---------- TEST 2 COMPLETATO ---------- \n\e[0m"
